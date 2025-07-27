@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>JXOS v1</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- ======================= CSS СТИЛИ ======================= -->
+    <style>
+        :root {
+            --animation-speed: 1;
+        }
+        body, html {
+            margin: 0; padding: 0; height: 100%; overflow: hidden;
+            background: #212121; font-family: 'Roboto', sans-serif; user-select: none;
+        }
+        .hidden { display: none !important; }
+
+        /* --- Экран загрузки --- */
+        #boot-screen {
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+            height: 100%; background: #000;
+        }
+        .boot-logo { max-width: 40%; max-height: 40%; }
+        .boot-info {
+            position: absolute; top: 15px; left: 15px;
+            font-family: monospace; color: #ccc; font-size: 14px; line-height: 1.5;
+        }
+        #bootloader-status { font-weight: bold; }
+
+        /* --- Контейнер и рабочий стол --- */
+        #android-container {
+            width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+        }
+        /* ИСПРАВЛЕНО: Теперь desktop это главный контейнер для всего, включая окна */
+        #desktop {
+            width: 360px; height: 640px;
+            background-color: #444; background-image: url('images/wp1.jpg');
+            background-size: cover; background-position: center;
+            position: relative; /* ВАЖНО для позиционирования дочерних окон */
+            border-radius: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            overflow: hidden; /* Все что вылезет за пределы - скроется */
+            display: flex; flex-direction: column;
+            transition: all calc(0.3s * var(--animation-speed));
+        }
+        
+        #status-bar {
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 4px 15px; text-align: right; color: #fff; font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+            z-index: 10; box-sizing: border-box;
+        }
+
+        /* --- Сетка приложений --- */
+        #app-grid {
+            padding: 20px; margin-top: 30px;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+        }
+        .app-icon {
+            display: flex; flex-direction: column; align-items: center; cursor: pointer;
+        }
+        .app-icon img {
+            width: 60px; height: 60px; border-radius: 12px; margin-bottom: 5px;
+            transition: transform calc(0.2s * var(--animation-speed));
+        }
+        .app-icon:hover img { transform: scale(1.1); }
+        .app-icon span {
+            color: #fff; font-size: 13px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); text-align: center;
+        }
+
+        /* ИСПРАВЛЕНО: Стили окна и шапки */
+        #app-window {
+            position: absolute; /* Позиционируется относительно #desktop */
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1e1e1e;
+            display: flex; flex-direction: column; z-index: 20;
+            animation: openApp calc(0.3s * var(--animation-speed)) forwards;
+        }
+        @keyframes openApp { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        
+        .app-header {
+            background: #3c3c3c; color: #fff; padding: 8px;
+            display: grid; grid-template-columns: 50px 1fr; /* [Кнопка Назад] [Заголовок] */
+            align-items: center; font-weight: 500; flex-shrink: 0;
+        }
+        
+        #back-btn {
+            grid-column: 1 / 2; justify-self: start;
+            background: none; border: none; cursor: pointer; padding: 5px;
+        }
+        #back-btn img { width: 28px; height: 28px; display: block; }
+        #app-title {
+            grid-column: 2 / 3; text-align: left; /* Заголовок теперь слева от центра */
+            padding-left: 10px; font-size: 18px; color: #fff;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        #app-content { flex-grow: 1; overflow-y: auto; color: #fff; }
+        #app-content::-webkit-scrollbar { width: 4px; }
+        #app-content::-webkit-scrollbar-track { background: transparent; }
+        #app-content::-webkit-scrollbar-thumb { background: #33b5e5; border-radius: 2px; }
+
+        /* --- Радужный текст JXOS --- */
+        .rainbow-text {
+            background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff);
+            background-size: 200% 200%;
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: rainbow-animation 4s ease infinite;
+        }
+        @keyframes rainbow-animation { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    </style>
+</head>
+<body>
+    <!-- ======================= HTML СТРУКТУРА ======================= -->
+    <div id="boot-screen">
+        <div class="boot-info">
+            <p>Bootloader: <span id="bootloader-status">Lock</span></p>
+            <p>Serial Number: MIDO-18PQ-JXXS</p>
+            <p>SoC: MT-6673</p>
+        </div>
+        <img src="images/bootlogo.png" alt="Boot Logo" class="boot-logo">
+    </div>
+
+    <div id="android-container" class="hidden">
+        <!-- ИСПРАВЛЕНО: #desktop теперь родитель для #app-window -->
+        <div id="desktop">
+            <div id="status-bar">
+                <span id="time">12:00</span>
+            </div>
+            <main id="app-grid">
+                <!-- Иконки -->
+                <div class="app-icon" data-app="Terminal">   <img src="icons/terminal.png" alt="Terminal">    <span>Terminal</span>      </div>
+                <div class="app-icon" data-app="Magisk">     <img src="icons/magisk.png" alt="Magisk">        <span>Magisk</span>        </div>
+                <div class="app-icon" data-app="Donate">     <img src="icons/donate.png" alt="Донат">         <span>Донат</span>         </div>
+                <div class="app-icon" data-app="Player">     <img src="icons/mp3.png" alt="MP3 Player">       <span>MP3 Player</span>    </div>
+                <div class="app-icon" data-app="Gallery">    <img src="icons/gallery.png" alt="Gallery">      <span>Gallery</span>       </div>
+                <div class="app-icon" data-app="Settings">   <img src="icons/settings.png" alt="Settings">     <span>Settings</span>      </div>
+                <div class="app-icon" data-app="FlappyBird"> <img src="icons/flappy.png" alt="Flappy Bird">    <span>Flappy Bird</span>   </div>
+            </main>
+            <!-- Окно приложения теперь ВНУТРИ рабочего стола -->
+            <div id="app-window" class="hidden">
+                <div class="app-header">
+                    <button id="back-btn"><img src="icons/up.png" alt="Back"></button>
+                    <span id="app-title"></span>
+                </div>
+                <div id="app-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= JAVASCRIPT ЛОГИКА ======================= -->
+    <script>
+    'use strict';
+    
+    // ИСПРАВЛЕНО: Немедленная проверка статуса загрузчика для boot-screen
+    // Этот код выполнится до всего остального
+    (function() {
+        const bootloaderStatusElem = document.getElementById('bootloader-status');
+        if (localStorage.getItem('bootloader_unlocked') === 'true') {
+            bootloaderStatusElem.textContent = 'Unlock';
+            bootloaderStatusElem.style.color = '#ff9800';
+        } else {
+            bootloaderStatusElem.textContent = 'Lock';
+            bootloaderStatusElem.style.color = '#f44336';
+        }
+    })();
+
+
+    function rebootDevice(fast = false) {
+        const container = document.getElementById('android-container');
+        container.style.transition = 'opacity 0.5s';
+        container.style.opacity = '0';
+        setTimeout(() => { window.location.reload(); }, fast ? 100 : 500);
+    }
+    
+    const appRenderers = {
+        // ... (Код для Terminal, Magisk, Donate, Player, Gallery, Settings не изменился) ...
+        Terminal: (container) => {
+            container.innerHTML = `
+                <style>
+                    .terminal { background: #000; height: 100%; padding: 10px; font-family: monospace; font-size: 14px; display: flex; flex-direction: column; box-sizing: border-box;}
+                    .terminal-output { flex-grow: 1; overflow-y: auto; color: #00ff00; word-break: break-all; }
+                    .terminal-output .prompt { color: #00ffff; }
+                    .terminal-input-line { display: flex; }
+                    .terminal-input-line span { color: #ff00ff; padding-right: 5px; }
+                    .terminal-input { background: none; border: none; color: #00ff00; flex-grow: 1; font-family: monospace; font-size: 14px; outline: none; }
+                </style>
+                <div class="terminal">
+                    <div class="terminal-output">
+                        <div>JXOS AOSP Terminal [Version 1.0]</div>
+                        <div>(c) 2025 Jelikton Corp.</div><br>
+                    </div>
+                    <div class="terminal-input-line">
+                        <span>user@jxos:~$</span>
+                        <input type="text" class="terminal-input" autofocus />
+                    </div>
+                </div>
+            `;
+            const output = container.querySelector('.terminal-output');
+            const input = container.querySelector('.terminal-input');
+            const writeLine = (text, color = '#00ff00') => {
+                output.innerHTML += `<div style="color: ${color};">${text.replace(/</g, "<").replace(/>/g, ">")}</div>`;
+                output.scrollTop = output.scrollHeight;
+            };
+            const handleCommand = (cmd) => {
+                writeLine(`user@jxos:~$ ${cmd}`);
+                if (cmd === 'sudo unlock oem bootloader') {
+                    writeLine(`Attempting to unlock bootloader...`);
+                    setTimeout(() => {
+                        localStorage.setItem('bootloader_unlocked', 'true');
+                        writeLine(`oem bootloader unlock... [OKAY]  13.23 sec.`, '#00ff00');
+                        writeLine(`Device will reboot in 5 seconds.`);
+                        setTimeout(() => rebootDevice(true), 5000);
+                    }, 2000);
+                } else if (cmd === 'grub') {
+                    writeLine(`GNU GRUB version 2.02`);
+                    writeLine(`Minimal BASH-like line editing is supported.`);
+                } else if (cmd === 'clear') {
+                    output.innerHTML = '';
+                } else {
+                    writeLine(`bash: command not found: ${cmd}`);
+                }
+            };
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && input.value.trim()) {
+                    handleCommand(input.value.trim());
+                    input.value = '';
+                }
+            });
+        },
+        Magisk: (container, state) => {
+             container.innerHTML = `
+                <style>
+                    .magisk-body { padding: 20px; text-align: center; }
+                    .magisk-logo { font-size: 48px; }
+                    .magisk-status { margin: 15px 0; padding: 10px; border-radius: 5px; font-weight: bold; }
+                    .status-ok { background: #2e7d32; }
+                    .status-fail { background: #c62828; }
+                    .magisk-btn { background: #1976d2; color: #fff; border: none; padding: 15px 30px; font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 20px; transition: opacity 0.3s; }
+                    .magisk-info { font-size: 14px; color: #aaa; margin-top: 20px; padding: 0 10px; line-height: 1.5; }
+                </style>
+                <div class="magisk-body">
+                    <div class="magisk-logo">⚡</div>
+                    <h2>Magisk</h2>
+                    <div id="magisk-status-box" class="magisk-status"></div>
+                    <button id="install-btn" class="magisk-btn">Install</button>
+                    <div id="magisk-message" class="magisk-info"></div>
+                </div>
+            `;
+
+            const statusBox = container.querySelector('#magisk-status-box');
+            const installBtn = container.querySelector('#install-btn');
+            const message = container.querySelector('#magisk-message');
+
+            if (state.isBootloaderLocked) {
+                statusBox.textContent = 'ROOT: НЕ ДОСТУПЕН';
+                statusBox.classList.add('status-fail');
+                message.innerHTML = '<b>Загрузчик заблокирован!</b><br>Для получения ROOT-прав, сперва разблокируйте загрузчик в терминале: <br><code>sudo unlock oem bootloader</code>';
+                installBtn.disabled = true;
+                installBtn.style.opacity = '0.5';
+            } else {
+                statusBox.textContent = 'ROOT: ДОСТУПЕН';
+                statusBox.classList.add('status-ok');
+                message.textContent = 'Ваше устройство готово к получению ROOT-прав.';
+            }
+
+            installBtn.addEventListener('click', () => {
+                if (confirm('ВЫ ПОЛУЧИТЕ РУТ-ПРАВА НА СВОЕМ УСТРОЙСТВЕ, ВЫ ПОДТВЕРЖДАЕТЕ ДЕЙСТВИЕ?')) {
+                    message.textContent = 'Установка Magisk... Патчинг boot... Успешно! Перезагрузка...';
+                    installBtn.disabled = true;
+                    installBtn.style.opacity = '0.5';
+                    setTimeout(rebootDevice, 4000);
+                }
+            });
+        },
+        Donate: (container) => {
+             container.innerHTML = `
+                <style>
+                    .donate-content { padding: 20px; }
+                    .donate-title { text-align: center; font-size: 20px; margin-bottom: 25px; }
+                    .donate-btn { display: block; background: #51a8e1; color: #fff; text-decoration: none; padding: 15px; margin: 15px 0; text-align: center; border-radius: 8px; font-weight: 500; }
+                    .donate-btn.tg { background: #39a9e0; }
+                    .donate-warning { margin-top: 30px; padding: 15px; background: #4a1c1c; border: 1px solid #c83232; border-radius: 5px; text-align: center; font-size: 14px; }
+                </style>
+                <div class="donate-content">
+                    <div class="donate-title">Выберите способ поддержки:</div>
+                    <a href="https://www.donationalerts.com/r/jelikton" target="_blank" class="donate-btn">Через DonationAlerts</a>
+                    <a href="https://t.me/jelikton" target="_blank" class="donate-btn tg">Написать в Telegram</a>
+                    <p style="font-size: 12px; color: #ccc; text-align: center;">При отправке в ТГ, напишите: "Привет, я хочу поддержать твой проект денюжкой".</p>
+                    <div class="donate-warning">
+                        <b>ВНИМАНИЕ!</b><br>
+                        ЕСЛИ ВЫ ПО РОФЛУ ХОТИТЕ НАЖАТЬ, ТО ВАС ЖДЕТ МНГНОВЕННЫЙ БАН НА САЙТЕ + ТГ.
+                    </div>
+                </div>
+            `;
+        },
+        Player: (container) => {
+            const songList = ["song1.mp3", "song2.mp3", "song3.mp3"]; 
+            container.innerHTML = `
+                <style>
+                    .player-body { display: flex; flex-direction: column; height: 100%; background: #2c2c2c; }
+                    .player-now-playing { padding: 20px; text-align: center; background: #222; }
+                    #song-title { font-size: 18px; font-weight: 500; min-height: 25px; }
+                    .player-controls { display: flex; justify-content: space-around; align-items: center; padding: 20px; background: #333; }
+                    .player-controls button { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
+                    .player-playlist { flex-grow: 1; overflow-y: auto; }
+                    .playlist-item { padding: 15px 20px; border-bottom: 1px solid #444; cursor: pointer; }
+                    .playlist-item:hover, .playlist-item.active { background: #33b5e5; color: #000; }
+                    .player-extra-controls { display: flex; justify-content: center; gap: 20px; padding: 10px; font-size: 12px; align-items: center;}
+                </style>
+                <div class="player-body">
+                    <div class="player-now-playing"><div id="song-title">Выберите трек</div></div>
+                    <div class="player-controls">
+                        <button id="prev-btn">⏮</button>
+                        <button id="play-pause-btn">▶️</button>
+                        <button id="next-btn">⏭</button>
+                    </div>
+                    <div class="player-extra-controls">
+                        <button id="repeat-btn" title="Повтор">🔁</button>
+                        <label>Скорость: <span id="speed-label">1.0</span>x <input type="range" id="speed-control" min="0.5" max="2" step="0.1" value="1"></label>
+                    </div>
+                    <div id="playlist-container" class="player-playlist"></div>
+                </div>
+            `;
+            const audio = new Audio();
+            let currentTrackIndex = 0, isPlaying = false, repeatMode = 'none';
+            const playPauseBtn = container.querySelector('#play-pause-btn');
+            const titleElem = container.querySelector('#song-title');
+            const playlistContainer = container.querySelector('#playlist-container');
+            function loadTrack(index) {
+                currentTrackIndex = index;
+                audio.src = `music/${songList[index]}`;
+                titleElem.textContent = songList[index].replace('.mp3', '');
+                updatePlaylistUI();
+            }
+            function playTrack() { audio.play(); isPlaying = true; playPauseBtn.textContent = '⏸️'; }
+            function pauseTrack() { audio.pause(); isPlaying = false; playPauseBtn.textContent = '▶️'; }
+            function updatePlaylistUI() { container.querySelectorAll('.playlist-item').forEach((item, index) => { item.classList.toggle('active', index === currentTrackIndex); }); }
+            songList.forEach((song, index) => {
+                const item = document.createElement('div');
+                item.className = 'playlist-item';
+                item.textContent = song.replace('.mp3', '');
+                item.onclick = () => { loadTrack(index); playTrack(); };
+                playlistContainer.appendChild(item);
+            });
+            playPauseBtn.onclick = () => (isPlaying ? pauseTrack() : playTrack());
+            container.querySelector('#next-btn').onclick = () => { loadTrack((currentTrackIndex + 1) % songList.length); playTrack(); };
+            container.querySelector('#prev-btn').onclick = () => { loadTrack((currentTrackIndex - 1 + songList.length) % songList.length); playTrack(); };
+            const repeatBtn = container.querySelector('#repeat-btn');
+            repeatBtn.onclick = () => {
+                if(repeatMode === 'none') { repeatMode = 'all'; repeatBtn.style.opacity = 1; }
+                else if (repeatMode === 'all') { repeatMode = 'one'; repeatBtn.textContent = '🔂'; }
+                else { repeatMode = 'none'; repeatBtn.textContent = '🔁'; repeatBtn.style.opacity = 0.5; }
+            };
+            repeatBtn.style.opacity = 0.5;
+            audio.onended = () => {
+                if(repeatMode === 'one') { playTrack(); }
+                else if (repeatMode === 'all') { container.querySelector('#next-btn').click(); }
+                else { pauseTrack(); }
+            };
+            const speedControl = container.querySelector('#speed-control');
+            speedControl.oninput = () => { audio.playbackRate = speedControl.value; container.querySelector('#speed-label').textContent = parseFloat(speedControl.value).toFixed(1); };
+        },
+        Gallery: (container) => {
+            const photoList = ["photo1.jpg", "photo2.png", "photo3.jpg"];
+            container.innerHTML = `
+                <style>
+                    .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 5px; }
+                    .gallery-thumb { width: 100%; height: 115px; object-fit: cover; cursor: pointer; }
+                    .gallery-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: flex; justify-content: center; align-items: center; }
+                    .gallery-modal img { max-width: 90%; max-height: 90%; }
+                </style>
+                <div class="gallery-grid"></div>
+                <div id="gallery-modal" class="gallery-modal hidden">
+                    <img id="full-photo" src="">
+                </div>
+            `;
+            const grid = container.querySelector('.gallery-grid');
+            const modal = container.querySelector('#gallery-modal');
+            const fullPhoto = container.querySelector('#full-photo');
+            if (photoList.length === 0) { grid.innerHTML = '<p style="padding: 20px; text-align: center; grid-column: 1 / -1;">Нет фото.</p>'; return; }
+            photoList.forEach(photoName => {
+                const img = document.createElement('img');
+                img.src = `photos/${photoName}`;
+                img.className = 'gallery-thumb';
+                img.onclick = () => { fullPhoto.src = `photos/${photoName}`; modal.classList.remove('hidden'); };
+                grid.appendChild(img);
+            });
+            modal.onclick = () => modal.classList.add('hidden');
+        },
+        Settings: (container) => {
+            container.innerHTML = `
+                <style>
+                    .settings-header { text-align: center; padding: 20px; }
+                    .settings-header .rainbow-text { font-size: 32px; font-weight: bold; }
+                    .settings-section { margin: 10px; padding: 10px; background: #333; border-radius: 8px; }
+                    .settings-section h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 5px;}
+                    .settings-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; min-height: 24px;}
+                    .wallpaper-previews { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px;}
+                    .wallpaper-previews img { width: 50px; height: 88px; border: 2px solid transparent; cursor: pointer; border-radius: 4px; object-fit: cover; }
+                    .wallpaper-previews img.selected { border-color: #33b5e5; }
+                </style>
+                <div class="settings-header"><div class="rainbow-text">JXOS v1</div></div>
+                <div class="settings-content" style="padding: 0 10px;">
+                    <div class="settings-section">
+                        <h3>Рабочий стол</h3>
+                        <div class="settings-item"><span>Обои</span></div>
+                        <div class="wallpaper-previews" id="wp-container"></div>
+                        <div class="settings-item">
+                            <label for="anim-speed">Скорость анимации</label>
+                            <input type="range" id="anim-speed" min="0.1" max="5" step="0.1" value="${localStorage.getItem('animation_speed') || 1}">
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Об устройстве</h3>
+                        <div class="settings-item"><span>Версия</span> <span>v1</span></div>
+                        <p style="font-size:12px; color:#ccc; padding: 0 10px;">Что нового: <br>- Базовый интерфейс JXOS<br>- Рабочие приложения<br>- Система разблокировки и рута</p>
+                        <div class="settings-item"><span>Разработчик</span> <span>@jelikton</span></div>
+                    </div>
+                </div>
+            `;
+            const wallpapers = ['images/wp1.jpg', 'images/wp2.jpg', 'images/wp3.jpg', 'images/wp4.jpg'];
+            const desktop = document.getElementById('desktop');
+            const wpContainer = container.querySelector('#wp-container');
+            const currentWp = localStorage.getItem('desktop_wallpaper') || wallpapers[0];
+            wallpapers.forEach(wp => {
+                const thumb = document.createElement('img');
+                thumb.src = wp;
+                thumb.onclick = () => {
+                    localStorage.setItem('desktop_wallpaper', wp);
+                    desktop.style.backgroundImage = `url('${wp}')`;
+                    container.querySelector('.wallpaper-previews img.selected')?.classList.remove('selected');
+                    thumb.classList.add('selected');
+                };
+                if(wp === currentWp) thumb.classList.add('selected');
+                wpContainer.appendChild(thumb);
+            });
+            const animSlider = container.querySelector('#anim-speed');
+            animSlider.addEventListener('input', () => {
+                const speed = animSlider.value;
+                localStorage.setItem('animation_speed', speed);
+                document.documentElement.style.setProperty('--animation-speed', speed);
+            });
+        },
+
+        // ИСПРАВЛЕНО: Полностью рабочий код Flappy Bird
+        FlappyBird: (container) => {
+            container.innerHTML = `<style>#flappy-canvas { display: block; touch-action: none; background: #87ceeb; width: 100%; height: 100%;}</style><canvas id="flappy-canvas"></canvas>`;
+            const canvas = container.querySelector('#flappy-canvas');
+            const appHeaderHeight = 46; // Примерная высота шапки
+            canvas.width = 360;
+            canvas.height = 640 - appHeaderHeight;
+            const ctx = canvas.getContext('2d');
+            
+            let frame = 0;
+            const state = { current: 0, getReady: 0, game: 1, over: 2 };
+            const birdImg = new Image();
+            birdImg.src = "icons/flappy.png";
+
+            const bird = {
+                x: 60, y: 250, radius: 15, speed: 0, gravity: 0.25, jump: 4.6, rotation: 0,
+                draw: function() {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.rotation);
+                    ctx.drawImage(birdImg, -this.radius, -this.radius, this.radius * 2.2, this.radius * 2.2);
+                    ctx.restore();
+                },
+                update: function() {
+                    const period = state.current === state.getReady ? 10 : 5;
+                    if (state.current === state.getReady) {
+                        this.y = 250 + 8 * Math.sin(frame * Math.PI / period / 10);
+                        this.rotation = 0;
+                    } else {
+                        this.speed += this.gravity;
+                        this.y += this.speed;
+                        if (this.y + this.radius >= canvas.height - 112) {
+                            this.y = canvas.height - 112 - this.radius;
+                            if (state.current === state.game) state.current = state.over;
+                        }
+                        if (this.speed >= this.jump) { this.rotation = Math.min(Math.PI / 4, this.rotation + 0.1); }
+                        else { this.rotation = -Math.PI / 6; }
+                    }
+                },
+                reset: function() { this.speed = 0; this.y = 250; }
+            };
+
+            const pipes = {
+                position: [], w: 53, h: 400, gap: 100, maxYPos: -150, dx: 2,
+                draw: function() {
+                    for (let p of this.position) {
+                        ctx.fillStyle = "#008000"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+                        ctx.fillRect(p.x, p.y, this.w, this.h);
+                        ctx.strokeRect(p.x, p.y, this.w, this.h);
+                        ctx.fillRect(p.x, p.y + this.h + this.gap, this.w, this.h);
+                        ctx.strokeRect(p.x, p.y + this.h + this.gap, this.w, this.h);
+                    }
+                },
+                update: function() {
+                    if (state.current !== state.game) return;
+                    if (frame % 100 === 0) this.position.push({ x: canvas.width, y: this.maxYPos * (Math.random() + 1) });
+                    for (let p of this.position) {
+                        p.x -= this.dx;
+                        if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + this.w && (bird.y - bird.radius < p.y + this.h || bird.y + bird.radius > p.y + this.h + this.gap)) {
+                            state.current = state.over;
+                        }
+                        if (p.x + this.w < bird.x && !p.passed) { score.value++; p.passed = true; }
+                        if (p.x + this.w <= 0) this.position.shift();
+                    }
+                },
+                reset: function() { this.position = []; }
+            };
+
+            const score = {
+                value: 0, best: parseInt(localStorage.getItem('flappyBest')) || 0,
+                draw: function() {
+                    ctx.fillStyle = "#FFF"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+                    ctx.font = "35px Teko, sans-serif";
+                    if (state.current === state.game) {
+                        ctx.fillText(this.value, canvas.width/2, 50);
+                        ctx.strokeText(this.value, canvas.width/2, 50);
+                    } else if (state.current === state.over) {
+                        this.best = Math.max(this.value, this.best);
+                        localStorage.setItem('flappyBest', this.best);
+                        ctx.font = "25px Teko, sans-serif";
+                        ctx.fillText("Game Over", canvas.width/2 - 50, 180);
+                    }
+                },
+                reset: function() { this.value = 0; }
+            };
+
+            function draw() {
+                ctx.fillStyle = "#87ceeb"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                pipes.draw();
+                ctx.fillStyle = "#ded895"; ctx.fillRect(0, canvas.height - 112, canvas.width, 112);
+                bird.draw();
+                score.draw();
+                if (state.current === state.getReady) {
+                    ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+                    ctx.fillStyle = "white"; ctx.font = "bold 25px sans-serif"; ctx.textAlign="center";
+                    ctx.fillText("Нажмите чтобы начать", canvas.width/2, canvas.height/2);
+                }
+            }
+
+            // ИСПРАВЛЕНО: Создаем недостающую функцию
+            function update() {
+                bird.update();
+                pipes.update();
+            }
+
+            function loop() {
+                update();
+                draw();
+                frame++;
+                requestAnimationFrame(loop);
+            }
+
+            canvas.addEventListener("click", () => {
+                switch(state.current) {
+                    case state.getReady: state.current = state.game; break;
+                    case state.game: bird.speed = -bird.jump; break;
+                    case state.over: bird.reset(); pipes.reset(); score.reset(); state.current = state.getReady; break;
+                }
+            });
+
+            loop();
+        },
+    };
+
+    // --- ГЛАВНАЯ ЛОГИКА И ИНИЦИАЛИЗАЦИЯ ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const state = { isBootloaderLocked: localStorage.getItem('bootloader_unlocked') !== 'true' };
+        const bootScreen = document.getElementById('boot-screen');
+        const androidContainer = document.getElementById('android-container');
+        const timeElem = document.getElementById('time');
+        const appIcons = document.querySelectorAll('.app-icon');
+        const appWindow = document.getElementById('app-window');
+        const appTitleElem = document.getElementById('app-title');
+        const appContent = document.getElementById('app-content');
+        const desktop = document.getElementById('desktop');
+        const backBtn = document.getElementById('back-btn');
+
+        const openApp = (appName, appTitle) => {
+            appTitleElem.textContent = appTitle;
+            appContent.innerHTML = '';
+            appWindow.classList.remove('hidden');
+            const renderer = appRenderers[appName];
+            if (typeof renderer === 'function') {
+                renderer(appContent, state);
+            } else {
+                appContent.innerHTML = `<p style="padding: 20px;">Приложение "${appName}" не найдено.</p>`;
+            }
+        };
+
+        const closeApp = () => {
+            appWindow.classList.add('hidden');
+            appContent.innerHTML = '';
+        };
+
+        const updateClock = () => {
+            const now = new Date();
+            timeElem.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        };
+        
+        const initDesktop = () => {
+            const savedWallpaper = localStorage.getItem('desktop_wallpaper') || 'images/wp1.jpg';
+            desktop.style.backgroundImage = `url('${savedWallpaper}')`;
+            const animSpeed = localStorage.getItem('animation_speed') || 1;
+            document.documentElement.style.setProperty('--animation-speed', animSpeed);
+            updateClock();
+            setInterval(updateClock, 1000);
+            bootScreen.classList.add('hidden');
+            androidContainer.classList.remove('hidden');
+        };
+
+        setTimeout(initDesktop, 2500);
+
+        appIcons.forEach(icon => {
+            icon.addEventListener('click', () => {
+                const appName = icon.dataset.app;
+                const appTitle = icon.querySelector('span').textContent;
+                openApp(appName, appTitle);
+            });
+        });
+
+        backBtn.addEventListener('click', closeApp);
+    });
+
+    </script>
+</body>
+</html>
