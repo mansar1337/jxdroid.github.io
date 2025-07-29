@@ -245,7 +245,6 @@
                              writeLine(`Attempting to unlock bootloader...`);
                              setTimeout(() => {
                                 localStorage.setItem('bootloader_unlocked', 'true');
-                                localStorage.setItem('is_rooted', 'true');
                                 writeLine(`oem bootloader unlock... [OKAY]  13.23 sec.`, '#00ff00');
                                 writeLine(`Device will reboot in 5 seconds.`);
                                 setTimeout(() => rebootDevice(true), 5000);
