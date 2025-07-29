@@ -1,16 +1,12 @@
-## Hi there 👋
+# JxDroid
+Симулятор Android устройства прямо в раузере!
+## Запуск
+Для запуска сайта вы можете использовать один из вариантов:### 1. Запуск через GitHub Pages
+- [jxstab.github.io](https://jxdroid.github.io/)### 2. Запуск локально
+- ```1.``` Скачайте исходник нажав [сюда](https://github.com/jxdroid/jxdroid.github.io/archive/refs/heads/main.zip)- ```2.``` Распакуйте скачанный архив
+- ```3.``` Откройте ```index.html``` в браузере    
+## Автор
+- [@jelikton](https://www.t.me/jelikton)
 
-<!--
-**jxdroid/jxdroid** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-
-Here are some ideas to get you started:
-
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+## Лицензия
+[MIT](https://choosealicense.com/licenses/mit/)
