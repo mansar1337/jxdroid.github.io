@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>JXOS v1.1</title>
+    <title>JXOS v1.2</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -208,24 +208,184 @@
         setTimeout(() => window.location.reload(), fast ? 100 : 500);
     }
     
+    function addAppToDesktop(appName, iconSrc, displayName) {
+        const appGrid = document.getElementById('app-grid');
+        const appIcon = document.createElement('div');
+        appIcon.className = 'app-icon';
+        appIcon.dataset.app = appName;
+        appIcon.innerHTML = `<img src="${iconSrc}" alt="${displayName}"><span>${displayName}</span>`;
+        
+        appIcon.addEventListener('click', () => {
+            const appTitle = appIcon.querySelector('span').textContent;
+            openApp(appName, appTitle);
+        });
+        
+        appGrid.appendChild(appIcon);
+    }
+    
+    function openTWRPRecovery() {
+        document.getElementById('android-container').classList.add('hidden');
+        
+        const twrpContainer = document.createElement('div');
+        twrpContainer.id = 'twrp-recovery';
+        twrpContainer.innerHTML = `
+            <style>
+                #twrp-recovery {
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: #000; color: #fff; font-family: 'Roboto', sans-serif;
+                    display: flex; flex-direction: column; z-index: 2000;
+                }
+                .twrp-header {
+                    background: #ff6b35; padding: 10px; text-align: center;
+                    font-size: 18px; font-weight: bold;
+                }
+                .twrp-content {
+                    flex-grow: 1; padding: 20px; display: flex; flex-direction: column;
+                }
+                .twrp-menu {
+                    display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;
+                }
+                .twrp-menu-item {
+                    background: #333; padding: 20px; border-radius: 8px; text-align: center;
+                    cursor: pointer; transition: background-color 0.2s;
+                }
+                .twrp-menu-item:hover { background: #444; }
+                .twrp-menu-item h3 { margin: 0 0 10px 0; color: #ff6b35; }
+                .twrp-menu-item p { margin: 0; font-size: 12px; color: #aaa; }
+                .twrp-actions {
+                    display: flex; gap: 10px; justify-content: center;
+                }
+                .twrp-btn {
+                    background: #ff6b35; color: #fff; border: none; padding: 10px 20px;
+                    border-radius: 5px; cursor: pointer; font-size: 14px;
+                }
+                .twrp-btn.danger { background: #d32f2f; }
+                .twrp-btn.success { background: #4caf50; }
+                .twrp-log {
+                    background: #1a1a1a; padding: 10px; border-radius: 5px;
+                    font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;
+                    margin-top: 20px; flex-grow: 1;
+                }
+                .twrp-status {
+                    background: #2a2a2a; padding: 10px; border-radius: 5px;
+                    margin-bottom: 15px; text-align: center;
+                }
+            </style>
+            <div class="twrp-header">
+                Team Win Recovery Project v3.7.0
+            </div>
+            <div class="twrp-content">
+                <div class="twrp-status">
+                    <strong>Устройство:</strong> MIDO-18PQ-JXXS | <strong>Android:</strong> 4.4.4 | <strong>Размер:</strong> 16GB
+                </div>
+                <div class="twrp-menu">
+                    <div class="twrp-menu-item" id="twrp-wipe">
+                        <h3>🧹 Wipe</h3>
+                        <p>Очистка данных и кэша</p>
+                    </div>
+                    <div class="twrp-menu-item" id="twrp-backup">
+                        <h3>💾 Backup</h3>
+                        <p>Создание резервной копии</p>
+                    </div>
+                    <div class="twrp-menu-item" id="twrp-restore">
+                        <h3>📥 Restore</h3>
+                        <p>Восстановление из резервной копии</p>
+                    </div>
+                    <div class="twrp-menu-item" id="twrp-install">
+                        <h3>📦 Install</h3>
+                        <p>Установка ZIP файлов</p>
+                    </div>
+                </div>
+                <div class="twrp-actions">
+                    <button class="twrp-btn" id="twrp-reboot">🔄 Reboot</button>
+                    <button class="twrp-btn danger" id="twrp-poweroff">⏻ Power Off</button>
+                    <button class="twrp-btn success" id="twrp-exit">🏠 Exit to System</button>
+                </div>
+                <div id="twrp-log" class="twrp-log">
+                    [TWRP] Team Win Recovery Project v3.7.0
+                    [TWRP] Device: MIDO-18PQ-JXXS
+                    [TWRP] Android: 4.4.4 (KitKat)
+                    [TWRP] Recovery ready...
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(twrpContainer);
+        
+        const addLog = (text) => {
+            const log = document.getElementById('twrp-log');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `<div>[${timestamp}] ${text}</div>`;
+            log.scrollTop = log.scrollHeight;
+        };
+
+        document.getElementById('twrp-wipe').addEventListener('click', () => {
+            addLog('[TWRP] Starting wipe process...');
+            addLog('[TWRP] Wiping /data...');
+            addLog('[TWRP] Wiping /cache...');
+            addLog('[TWRP] Wipe completed successfully');
+        });
+        
+        document.getElementById('twrp-backup').addEventListener('click', () => {
+            addLog('[TWRP] Starting backup process...');
+            addLog('[TWRP] Backing up /system...');
+            addLog('[TWRP] Backing up /data...');
+            addLog('[TWRP] Backup completed successfully');
+        });
+        
+        document.getElementById('twrp-restore').addEventListener('click', () => {
+            addLog('[TWRP] Starting restore process...');
+            addLog('[TWRP] No backup files found');
+            addLog('[TWRP] Restore failed - no backups available');
+        });
+        
+        document.getElementById('twrp-install').addEventListener('click', () => {
+            addLog('[TWRP] Install ZIP function selected');
+            addLog('[TWRP] No ZIP files found in /sdcard');
+            addLog('[TWRP] Please place ZIP files in /sdcard directory');
+        });
+        
+        document.getElementById('twrp-reboot').addEventListener('click', () => {
+            addLog('[TWRP] Rebooting system...');
+            setTimeout(() => {
+                document.getElementById('twrp-recovery').remove();
+                document.getElementById('android-container').classList.remove('hidden');
+            }, 2000);
+        });
+        
+        document.getElementById('twrp-poweroff').addEventListener('click', () => {
+            addLog('[TWRP] Powering off device...');
+            setTimeout(() => {
+                alert('Устройство выключено');
+                document.getElementById('twrp-recovery').remove();
+                document.getElementById('android-container').classList.remove('hidden');
+            }, 2000);
+        });
+        
+        document.getElementById('twrp-exit').addEventListener('click', () => {
+            document.getElementById('twrp-recovery').remove();
+            document.getElementById('android-container').classList.remove('hidden');
+        });
+    }
+    
     const appRenderers = {
         Terminal: (container) => {
             container.innerHTML = `
                 <style>
-                    .terminal { background: #000; height: 100%; padding: 10px; font-family: monospace; font-size: 14px; display: flex; flex-direction: column-reverse; box-sizing: border-box;}
-                    .terminal-output { flex-grow: 1; overflow-y: auto; color: #00ff00; word-break: break-all; }
-                    .terminal-input-line { display: flex; background: #111; padding: 5px; border-top: 1px solid #333; }
-                    .terminal-input-line span { color: #ff00ff; padding-right: 5px; }
-                    .terminal-input { background: none; border: none; color: #00ff00; flex-grow: 1; font-family: monospace; font-size: 14px; outline: none; }
+                    .terminal { background: #000; height: 100%; padding: 10px; font-family: monospace; font-size: 14px; display: flex; flex-direction: column; box-sizing: border-box;}
+                    .terminal-output { flex-grow: 1; overflow-y: auto; color: #00ff00; word-break: break-all; margin-bottom: 10px; }
+                    .terminal-input-line { display: flex; background: #111; padding: 5px; border-top: 1px solid #333; flex-shrink: 0; }
+                    .terminal-input-line span { color: #ff00ff; padding-right: 5px; white-space: nowrap; }
+                    .terminal-input { background: none; border: none; color: #00ff00; flex-grow: 1; font-family: monospace; font-size: 14px; outline: none; min-width: 0; }
                 </style>
                 <div class="terminal">
-                     <div class="terminal-input-line">
-                        <span>user@jxos:~$</span>
-                        <input type="text" class="terminal-input" autofocus />
-                    </div>
                     <div class="terminal-output">
                         <div>(c) 2025 Jelikton Corp.</div>
                         <div>JXOS AOSP Terminal [Version 1.1]</div>
+                    </div>
+                    <div class="terminal-input-line">
+                        <span>user@jxos:~$</span>
+                        <input type="text" class="terminal-input" autofocus />
                     </div>
                 </div>
             `;
@@ -246,6 +406,16 @@
                              setTimeout(() => {
                                 localStorage.setItem('bootloader_unlocked', 'true');
                                 writeLine(`oem bootloader unlock... [OKAY]  13.23 sec.`, '#00ff00');
+                                writeLine(`Device will reboot in 5 seconds.`);
+                                setTimeout(() => rebootDevice(true), 5000);
+                            }, 2000);
+                        } else if (args[1] === 'lock' && args[2] === 'oem' && args[3] === 'bootloader') {
+                             writeLine(`Attempting to lock bootloader...`);
+                             setTimeout(() => {
+                                localStorage.removeItem('bootloader_unlocked');
+                                localStorage.removeItem('is_rooted');
+                                localStorage.removeItem('kernelsu_installed');
+                                writeLine(`oem bootloader lock... [OKAY]  8.45 sec.`, '#00ff00');
                                 writeLine(`Device will reboot in 5 seconds.`);
                                 setTimeout(() => rebootDevice(true), 5000);
                             }, 2000);
@@ -282,6 +452,9 @@
                         break;
                     case 'help':
                         writeLine('Commands: neofetch, ls, echo, cat, reboot, clear, sudo');
+                        writeLine('Sudo commands:');
+                        writeLine('  sudo unlock oem bootloader - разблокировать загрузчик');
+                        writeLine('  sudo lock oem bootloader - заблокировать загрузчик');
                         break;
                     default:
                         if(command) writeLine(`bash: command not found: ${command}`);
@@ -339,7 +512,13 @@
                 log.scrollTop = log.scrollHeight;
             };
             
-            if (localStorage.getItem('is_rooted') === 'true') {
+            if (localStorage.getItem('kernelsu_installed') === 'true') {
+                statusBox.textContent = 'ROOT: КОНФЛИКТ';
+                statusBox.classList.add('status-fail');
+                message.innerHTML = '<b>Обнаружен KernelSU NEXT!</b><br>Magisk несовместим с KernelSU. Сначала удалите KernelSU.';
+                installBtn.disabled = true;
+                installBtn.style.opacity = '0.5';
+            } else if (localStorage.getItem('is_rooted') === 'true') {
                 statusBox.textContent = 'ROOT: Установлен';
                 statusBox.classList.add('status-rooted');
                 message.textContent = 'Ваше устройство уже рутировано через Magisk.';
@@ -439,7 +618,58 @@
         },
 
         JxMarket: (container) => {
-            container.innerHTML = `<p style="text-align: center; padding-top: 50px;">Добро пожаловать в JxMarket! <br><br> Скоро здесь появятся приложения.</p>`;
+            container.innerHTML = `
+                <style>
+                    .market-body { padding: 20px; }
+                    .market-title { text-align: center; font-size: 20px; margin-bottom: 25px; }
+                    .app-card { background: #333; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; align-items: center; }
+                    .app-icon { width: 50px; height: 50px; border-radius: 8px; margin-right: 15px; background: #555; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+                    .app-info { flex-grow: 1; }
+                    .app-name { font-size: 16px; font-weight: 500; margin-bottom: 5px; }
+                    .app-desc { font-size: 12px; color: #aaa; margin-bottom: 5px; }
+                    .app-version { font-size: 11px; color: #666; }
+                    .download-btn { background: #4caf50; color: #fff; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+                    .download-btn:disabled { background: #666; cursor: not-allowed; }
+                    .download-btn.installed { background: #2196f3; }
+                </style>
+                <div class="market-body">
+                    <div class="market-title">JxMarket</div>
+                    <div class="app-card">
+                        <div class="app-icon">📱</div>
+                        <div class="app-info">
+                            <div class="app-name">TWRP Installer</div>
+                            <div class="app-desc">Team Win Recovery Project - кастомное рекавери для Android</div>
+                            <div class="app-version">Версия: 3.7.0</div>
+                        </div>
+                        <button id="twrp-download" class="download-btn">Скачать</button>
+                    </div>
+                </div>
+            `;
+            
+            const downloadBtn = container.querySelector('#twrp-download');
+            
+            if (localStorage.getItem('twrp_installed') === 'true') {
+                downloadBtn.textContent = 'Установлено';
+                downloadBtn.classList.add('installed');
+                downloadBtn.disabled = true;
+            }
+            
+            downloadBtn.addEventListener('click', () => {
+                if (localStorage.getItem('twrp_installed') !== 'true') {
+                    downloadBtn.textContent = 'Скачивание...';
+                    downloadBtn.disabled = true;
+                    
+                    setTimeout(() => {
+                        localStorage.setItem('twrp_installed', 'true');
+                        downloadBtn.textContent = 'Установлено';
+                        downloadBtn.classList.add('installed');
+                        
+                        addAppToDesktop('TWRP', 'icons/twrp.png', 'TWRP');
+                        
+                        alert('TWRP Installer успешно установлен на рабочий стол!');
+                    }, 2000);
+                }
+            });
         },
 
         Settings: (container) => {
@@ -514,6 +744,7 @@
                             <div class="rainbow-text" style="font-size: 32px; font-weight: bold;">JXOS v1.1</div>
                             <p>Версия: 1.1</p>
                             <p>Разработчик: @jelikton</p>
+                            <button class="settings-btn" id="reset-device-choice" style="margin-top: 20px; background: #d32f2f;">Сбросить выбор устройства</button>
                         </div>`;
                         break;
                 }
@@ -547,6 +778,15 @@
                     volume.oninput = () => {
                         localStorage.setItem('sound_volume', volume.value);
                         if(clickAudio) clickAudio.volume = volume.value;
+                    };
+                }
+                if (menu === 'about') {
+                    const resetBtn = container.querySelector('#reset-device-choice');
+                    resetBtn.onclick = () => {
+                        if (confirm('Сбросить выбор устройства? При следующем посещении сайта снова появится окно выбора устройства.')) {
+                            localStorage.removeItem('device_choice');
+                            alert('Выбор устройства сброшен. Перезагрузите страницу для применения изменений.');
+                        }
                     };
                 }
                 container.querySelector('#back-to-settings').onclick = renderSettingsMain;
@@ -851,6 +1091,173 @@
             }
         },
 
+        TWRP: (container, state) => {
+            container.innerHTML = `
+                <style>
+                    .twrp-body { padding: 20px; text-align: center; }
+                    .twrp-logo { font-size: 48px; color: #ff6b35; }
+                    .twrp-status { margin: 15px 0; padding: 15px; border-radius: 8px; font-weight: bold; }
+                    .status-ok { background: #2e7d32; }
+                    .status-fail { background: #c62828; }
+                    .status-installed { background: #ff6b35; }
+                    .twrp-btn { background: #ff6b35; color: #fff; border: none; padding: 15px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; margin: 10px; transition: opacity 0.3s; }
+                    .twrp-btn.danger { background: #d32f2f; }
+                    .twrp-btn.success { background: #4caf50; }
+                    .twrp-info { font-size: 14px; color: #aaa; margin-top: 20px; padding: 0 10px; line-height: 1.5; }
+                    .twrp-progress { width: 100%; height: 20px; background: #333; border-radius: 10px; margin: 15px 0; overflow: hidden; }
+                    .twrp-progress-bar { height: 100%; background: linear-gradient(90deg, #ff6b35, #ff8c42); width: 0%; transition: width 0.3s; }
+                    .twrp-log { background: #1a1a1a; padding: 10px; border-radius: 5px; margin-top: 15px; text-align: left; font-family: monospace; font-size: 12px; max-height: 150px; overflow-y: auto; }
+                    .twrp-instructions { background: #2a2a2a; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: left; }
+                    .twrp-instructions h4 { margin-top: 0; color: #ff6b35; }
+                </style>
+                <div class="twrp-body">
+                    <div class="twrp-logo">📱</div>
+                    <h2>TWRP Installer</h2>
+                    <div id="twrp-status-box" class="twrp-status"></div>
+                    <button id="download-recovery-btn" class="twrp-btn">Скачать Recovery</button>
+                    <button id="flash-recovery-btn" class="twrp-btn" disabled>Прошить Recovery</button>
+                    <button id="reboot-twrp-btn" class="twrp-btn success hidden">Перезагрузиться в TWRP</button>
+                    <div id="twrp-progress" class="twrp-progress hidden">
+                        <div id="twrp-progress-bar" class="twrp-progress-bar"></div>
+                    </div>
+                    <div id="twrp-log" class="twrp-log hidden"></div>
+                    <div id="twrp-message" class="twrp-info"></div>
+                    <div class="twrp-instructions">
+                        <h4>Как войти в TWRP:</h4>
+                        <p>1. Выключите устройство</p>
+                        <p>2. Зажмите кнопку питания + кнопку домой</p>
+                        <p>3. При появлении логотипа отпустите кнопку питания</p>
+                        <p>4. Удерживайте кнопку домой еще 3 секунды</p>
+                        <p>5. Вы попадете в TWRP Recovery</p>
+                    </div>
+                </div>
+            `;
+            
+            const statusBox = container.querySelector('#twrp-status-box');
+            const downloadBtn = container.querySelector('#download-recovery-btn');
+            const flashBtn = container.querySelector('#flash-recovery-btn');
+            const message = container.querySelector('#twrp-message');
+            const progress = container.querySelector('#twrp-progress');
+            const progressBar = container.querySelector('#twrp-progress-bar');
+            const log = container.querySelector('#twrp-log');
+            
+            const addLog = (text, color = '#00ff00') => {
+                const timestamp = new Date().toLocaleTimeString();
+                log.innerHTML += `<div style="color: ${color};">[${timestamp}] ${text}</div>`;
+                log.scrollTop = log.scrollHeight;
+            };
+            
+            if (localStorage.getItem('twrp_recovery_installed') === 'true') {
+                statusBox.textContent = 'TWRP: УСТАНОВЛЕН';
+                statusBox.classList.add('status-installed');
+                message.textContent = 'TWRP Recovery успешно установлен. Нажмите кнопку ниже для входа в рекавери.';
+                downloadBtn.disabled = true;
+                flashBtn.disabled = true;
+                container.querySelector('#reboot-twrp-btn').classList.remove('hidden');
+                
+                container.querySelector('#reboot-twrp-btn').addEventListener('click', () => {
+                    if (confirm('Перезагрузиться в TWRP Recovery?\n\nУстройство перезагрузится и войдет в режим рекавери.')) {
+                        addLog('Перезагрузка в TWRP Recovery...', '#ffff00');
+                        setTimeout(() => {
+                            openTWRPRecovery();
+                        }, 2000);
+                    }
+                });
+            } else if (state.isBootloaderLocked) {
+                statusBox.textContent = 'TWRP: НЕ ДОСТУПЕН';
+                statusBox.classList.add('status-fail');
+                message.innerHTML = '<b>Загрузчик заблокирован!</b><br>Сперва разблокируйте его в терминале командой: sudo unlock oem bootloader';
+                downloadBtn.disabled = true;
+                flashBtn.disabled = true;
+            } else {
+                statusBox.textContent = 'TWRP: ДОСТУПЕН';
+                statusBox.classList.add('status-ok');
+                message.textContent = 'Ваше устройство готово к установке TWRP Recovery.';
+                
+                downloadBtn.addEventListener('click', () => {
+                    progress.classList.remove('hidden');
+                    log.classList.remove('hidden');
+                    downloadBtn.disabled = true;
+                    
+                    addLog('Начинаем скачивание TWRP Recovery...', '#ffff00');
+                    
+                    const steps = [
+                        { progress: 20, log: 'Подключение к серверу TWRP...', delay: 800 },
+                        { progress: 40, log: 'Скачивание TWRP 3.7.0 для MT-6673...', delay: 1500 },
+                        { progress: 60, log: 'Проверка целостности файла...', delay: 1000 },
+                        { progress: 80, log: 'Сохранение recovery.img...', delay: 800 },
+                        { progress: 100, log: 'TWRP Recovery скачан успешно!', delay: 500 }
+                    ];
+                    
+                    let currentStep = 0;
+                    const processStep = () => {
+                        if (currentStep < steps.length) {
+                            const step = steps[currentStep];
+                            progressBar.style.width = step.progress + '%';
+                            addLog(step.log, '#00ff00');
+                            
+                            if (step.progress === 100) {
+                                setTimeout(() => {
+                                    localStorage.setItem('twrp_recovery_downloaded', 'true');
+                                    flashBtn.disabled = false;
+                                    addLog('Recovery готов к прошивке!', '#ffff00');
+                                }, step.delay);
+                            } else {
+                                setTimeout(processStep, step.delay);
+                            }
+                            currentStep++;
+                        }
+                    };
+                    
+                    processStep();
+                });
+                
+                flashBtn.addEventListener('click', () => {
+                    if (localStorage.getItem('twrp_recovery_downloaded') === 'true') {
+                        if (confirm('ВНИМАНИЕ! Прошивка TWRP Recovery изменит раздел recovery.\n\nВЫ ПОДТВЕРЖДАЕТЕ ДЕЙСТВИЕ?')) {
+                            progress.classList.remove('hidden');
+                            log.classList.remove('hidden');
+                            flashBtn.disabled = true;
+                            
+                            addLog('Начинаем прошивку TWRP Recovery...', '#ffff00');
+                            
+                            const steps = [
+                                { progress: 15, log: 'Перезагрузка в режим загрузчика...', delay: 1000 },
+                                { progress: 30, log: 'Подключение к устройству...', delay: 800 },
+                                { progress: 45, log: 'Прошивка recovery.img...', delay: 1500 },
+                                { progress: 60, log: 'Проверка прошивки...', delay: 1000 },
+                                { progress: 75, log: 'Настройка прав доступа...', delay: 800 },
+                                { progress: 90, log: 'Перезагрузка системы...', delay: 1000 },
+                                { progress: 100, log: 'TWRP Recovery установлен успешно!', delay: 500 }
+                            ];
+                            
+                            let currentStep = 0;
+                            const processStep = () => {
+                                if (currentStep < steps.length) {
+                                    const step = steps[currentStep];
+                                    progressBar.style.width = step.progress + '%';
+                                    addLog(step.log, '#00ff00');
+                                    
+                                    if (step.progress === 100) {
+                                        setTimeout(() => {
+                                            localStorage.setItem('twrp_recovery_installed', 'true');
+                                            addLog('Перезагрузка устройства через 3 секунды...', '#ffff00');
+                                            setTimeout(() => rebootDevice(true), 3000);
+                                        }, step.delay);
+                                    } else {
+                                        setTimeout(processStep, step.delay);
+                                    }
+                                    currentStep++;
+                                }
+                            };
+                            
+                            processStep();
+                        }
+                    }
+                });
+            }
+        },
+
         Donate: (container) => {
             container.innerHTML = `
                 <style>
@@ -949,6 +1356,8 @@
         },
     };
 
+    let openApp;
+    
     document.addEventListener('DOMContentLoaded', () => {
         const state = { isBootloaderLocked: localStorage.getItem('bootloader_unlocked') !== 'true' };
         
@@ -965,7 +1374,7 @@
         const homeBtn = document.getElementById('home-btn');
         const desktop = document.getElementById('desktop');
 
-        const openApp = (appName, appTitle) => {
+        openApp = (appName, appTitle) => {
             appTitleElem.textContent = appTitle;
             appContent.innerHTML = '';
             appWindow.classList.remove('hidden');
@@ -997,16 +1406,25 @@
                 desktop.style.backgroundImage = `url('${savedWallpaper}')`;
                 const animSpeed = localStorage.getItem('animation_speed') || 1;
                 document.documentElement.style.setProperty('--animation-speed', animSpeed);
+                
+                if (localStorage.getItem('twrp_installed') === 'true') {
+                    addAppToDesktop('TWRP', 'icons/twrp.png', 'TWRP');
+                }
+                
                 updateClock();
                 setInterval(updateClock, 30000);
             }, 2500);
         };
 
         pcChoiceBtn.addEventListener('click', () => {
+            localStorage.setItem('device_choice', 'pc');
             document.body.classList.add('pc-view');
             startBootSequence();
         });
-        mobileChoiceBtn.addEventListener('click', startBootSequence);
+        mobileChoiceBtn.addEventListener('click', () => {
+            localStorage.setItem('device_choice', 'mobile');
+            startBootSequence();
+        });
         
         appIcons.forEach(icon => {
             icon.addEventListener('click', () => {
@@ -1017,6 +1435,15 @@
         });
 
         homeBtn.addEventListener('click', closeApp);
+
+        const savedDeviceChoice = localStorage.getItem('device_choice');
+        if (savedDeviceChoice) {
+            choiceModal.classList.add('hidden');
+            if (savedDeviceChoice === 'pc') {
+                document.body.classList.add('pc-view');
+            }
+            startBootSequence();
+        }
     });
 
     </script>
