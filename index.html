@@ -3,126 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>JXOS v1.1</title>
+    <title>JXOS v1.3</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     
     <style>
-        :root { --animation-speed: 1; --holo-blue: #33b5e5; }
+        :root {
+            --animation-speed: 1;
+            --holo-blue: #33b5e5;
+            --app-bg: #111;
+            --dark-bg: #000;
+            --item-pressed-bg: rgba(51, 181, 229, 0.2);
+            --holo-green: #99cc00;
+            --pink-accent: #c2185b;
+        }
         body, html {
             margin: 0; padding: 0; height: 100%; overflow: hidden;
-            background: #212121; font-family: 'Roboto', sans-serif; user-select: none;
+            background: #212121; font-family: 'Roboto', sans-serif; font-weight: 400; user-select: none;
         }
         .hidden { display: none !important; }
 
+        #notification-popup {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(30,30,30,0.85); backdrop-filter: blur(5px);
+            color: white; padding: 10px 20px; border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+            z-index: 2000; font-size: 14px; opacity: 0; transition: opacity 0.5s, top 0.5s;
+        }
+        #notification-popup.show { opacity: 1; top: 40px; }
+
         #device-choice-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 1000;
+            background: rgba(0,0,0,0.95); z-index: 1000;
             display: flex; flex-direction: column; justify-content: center; align-items: center; color: white;
         }
-        #device-choice-modal h2 { font-weight: 500; }
+        #device-choice-modal h2 { font-weight: 300; font-size: 22px; margin-bottom: 20px; }
         .choice-buttons button {
-            background: var(--holo-blue); color: white; border: none;
-            padding: 15px 30px; margin: 10px; font-size: 18px;
-            border-radius: 8px; cursor: pointer;
+            background: transparent; color: white; border: 1px solid var(--holo-blue);
+            padding: 12px 28px; margin: 10px; font-size: 16px;
+            border-radius: 4px; cursor: pointer; transition: all 0.2s ease;
         }
+        .choice-buttons button:hover { background: var(--holo-blue); color: var(--dark-bg); }
 
-        body.pc-view #android-container { transform: scale(0.9); height: auto; }
+        body.pc-view #android-container { transform: scale(0.9); height: auto; border-radius: 24px; }
         
         #boot-screen {
             display: flex; justify-content: center; align-items: center; flex-direction: column;
-            height: 100%; background: #000;
+            height: 100%; background: #000; color: #eee;
+            font-family: monospace; font-size: 14px;
+            padding: 20px; box-sizing: border-box; text-align: center;
         }
-        .boot-logo { width: 100%; height: 100%; object-fit: cover; }
-        .boot-info {
-            position: absolute; top: 15px; left: 15px;
-            font-family: monospace; color: #ccc; font-size: 14px; line-height: 1.5; z-index: 5;
-            text-shadow: 1px 1px 2px #000;
-        }
-        #bootloader-status, #root-status { font-weight: bold; }
-
+        .boot-header { color: var(--holo-green); font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+        .boot-info-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 5px 15px; text-align: left; }
+        .boot-label { color: #aaa; }
+        .boot-value { color: #fff; font-weight: bold; }
+        .boot-value.red { color: #f44336; }
+        .boot-value.yellow { color: #ffeb3b; }
+        .boot-value.green { color: #4caf50; }
+        
         #android-container {
-            width: 100%; height: 100%;
-            display: flex; justify-content: center; align-items: center;
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
             transition: transform 0.3s ease;
         }
         #desktop {
-            width: 360px; height: 640px;
-            background-color: #444; background-image: url('images/wp1.jpg');
-            background-size: cover; background-position: center;
-            position: relative; border-radius: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            width: 360px; height: 640px; background-color: #000; background-size: cover; background-position: center;
+            position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.6);
             overflow: hidden; display: flex; flex-direction: column;
         }
         
         #status-bar {
             position: absolute; top: 0; left: 0; width: 100%;
-            padding: 4px 15px; text-align: right; color: #fff; font-weight: 500;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-            background: linear-gradient(to bottom, rgba(0,0,0,0.4), transparent);
-            z-index: 10; box-sizing: border-box;
+            height: 25px; display: flex; justify-content: flex-end; align-items: center;
+            padding: 0 8px; color: #fff; font-size: 14px; font-weight: 500;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.6); z-index: 10; box-sizing: border-box;
         }
 
         #app-grid {
-            flex-grow: 1;
-            padding: 20px; margin-top: 30px;
+            flex-grow: 1; padding: 20px; margin-top: 25px;
             display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; align-content: start;
         }
-        .app-icon {
-            display: flex; flex-direction: column; align-items: center; cursor: pointer;
-        }
+        .app-icon { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
         .app-icon img {
-            width: 60px; height: 60px; border-radius: 12px; margin-bottom: 5px;
-            transition: transform calc(0.2s * var(--animation-speed));
+            width: 58px; height: 58px; border-radius: 12px; margin-bottom: 8px;
+            transition: all calc(0.2s * var(--animation-speed));
         }
-        .app-icon:hover img { transform: scale(1.1); }
-        .app-icon span {
-            color: #fff; font-size: 13px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); text-align: center;
-        }
+        .app-icon[data-installed="false"] img { filter: grayscale(1); opacity: 0.6; }
+        .app-icon[data-installed="false"]:hover img { transform: none; box-shadow: none; }
+        .app-icon:not([data-installed="false"]):hover img { transform: scale(1.1); box-shadow: 0 0 15px rgba(51, 181, 229, 0.5); }
+        .app-icon span { color: #fff; font-size: 13px; text-shadow: 1px 1px 2px rgba(0,0,0,0.9); text-align: center; }
 
         #nav-bar {
-            height: 50px; background: #000;
-            flex-shrink: 0; display: flex; justify-content: center; align-items: center;
+            height: 48px; background: #000; flex-shrink: 0; display: flex; justify-content: space-around; align-items: center;
             z-index: 25; position: relative;
         }
-        #home-btn {
-            width: 40px; height: 40px; border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.7); background: none; cursor: pointer;
-            transition: background-color 0.2s;
+        .nav-btn {
+            background: none; border: none; cursor: pointer; opacity: 0.7; transition: opacity 0.2s;
+            flex-grow: 1; height: 100%; display: flex; justify-content: center; align-items: center;
         }
-        #home-btn:hover { background-color: rgba(51, 181, 229, 0.3); }
+        .nav-btn:hover { opacity: 1; background: var(--item-pressed-bg); }
+        .nav-btn svg { width: 26px; height: 26px; }
+        
+        #physical-power-button {
+            position: absolute; right: -5px; top: 120px; width: 5px; height: 80px; z-index: 50; cursor: pointer;
+        }
 
         #app-window {
-            position: absolute; top: 0; left: 0; width: 100%; 
-            height: calc(100% - 50px);
-            background: #1e1e1e;
-            display: flex; flex-direction: column; z-index: 20;
-            animation: openApp calc(0.3s * var(--animation-speed)) forwards;
+            position: absolute; top: 25px; left: 0; width: 100%; height: calc(100% - 25px - 48px);
+            background: var(--app-bg); display: flex; flex-direction: column; z-index: 20;
+            transform-origin: center; animation: openApp calc(0.35s * var(--animation-speed)) forwards cubic-bezier(0.1, 0.9, 0.2, 1);
         }
-        @keyframes openApp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes openApp { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        #app-window.closing { animation: closeApp calc(0.3s * var(--animation-speed)) forwards ease-in-out; }
+        @keyframes closeApp { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9); } }
         
         .app-header {
-            background: #111; border-bottom: 2px solid var(--holo-blue);
-            color: #fff; padding: 12px 20px;
-            text-align: left; font-weight: 500; font-size: 18px; flex-shrink: 0;
+            background: #222; border-bottom: 2px solid var(--holo-blue);
+            color: #fff; padding: 12px 16px; text-align: left;
+            font-weight: 400; font-size: 20px; flex-shrink: 0;
+            display: flex; align-items: center; gap: 10px;
         }
         
         #app-content { flex-grow: 1; overflow-y: auto; color: #fff; }
-        #app-content::-webkit-scrollbar { width: 4px; }
+        #app-content::-webkit-scrollbar { width: 5px; }
         #app-content::-webkit-scrollbar-track { background: transparent; }
         #app-content::-webkit-scrollbar-thumb { background: var(--holo-blue); border-radius: 2px; }
 
-        .rainbow-text {
-            background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff);
-            background-size: 200% 200%;
-            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-            animation: rainbow-animation 4s ease infinite;
+        #aod-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 900; color: #777; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        @keyframes rainbow-animation { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+        #aod-time { font-size: 72px; font-weight: 300; }
+        #aod-date { font-size: 18px; font-weight: 400; }
     </style>
 </head>
 <body>
     
+    <div id="notification-popup"></div>
+
     <div id="device-choice-modal">
         <h2>Как вы просматриваете сайт?</h2>
         <div class="choice-buttons">
@@ -132,612 +152,382 @@
     </div>
     
     <div id="boot-screen" class="hidden">
-        <div class="boot-info">
-            <p>Bootloader: <span id="bootloader-status">Lock</span></p>
-            <p>Root Status: <span id="root-status">No</span></p>
-            <p>Serial Number: MIDO-18PQ-JXXS</p>
-            <p>SoC: MT-6673</p>
+        <div class="boot-header">-- JXOS Recovery Mode --</div>
+        <div class="boot-info-grid">
+            <div class="boot-label">PRODUCT NAME:</div>    <div class="boot-value">JX-MIDO</div>
+            <div class="boot-label">CURRENT BINARY:</div>  <div class="boot-value">JXOS Official</div>
+            <div class="boot-label">SYSTEM STATUS:</div>   <div class="boot-value">Official</div>
+            <div class="boot-label">FRP LOCK:</div>         <div class="boot-value">OFF</div>
+            <div class="boot-label">OEM LOCK:</div>         <div id="bootloader-status" class="boot-value">Lock</div>
+            <div class="boot-label">ROOT STATUS:</div>      <div id="root-status" class="boot-value">No</div>
+            <div class="boot-label">SECURE DOWNLOAD:</div>  <div class="boot-value green">ENABLED</div>
+            <div class="boot-label">SERIAL:</div>           <div class="boot-value">MIDO-18PQ-JXXS</div>
+            <div class="boot-label">SOC:</div>               <div class="boot-value">MT-6673</div>
         </div>
-        <img src="images/bootlogo.png" alt="Boot Logo" class="boot-logo">
     </div>
 
     <div id="android-container" class="hidden">
         <div id="desktop">
             <div id="status-bar"><span id="time">12:00</span></div>
+            
+            <div id="aod-screen" class="hidden">
+                <div id="aod-time">12:00</div>
+                <div id="aod-date">Sunday, 1 January</div>
+            </div>
+
             <main id="app-grid">
-                <div class="app-icon" data-app="Terminal">   <img src="icons/terminal.png" alt="Terminal">    <span>Terminal</span>      </div>
-                <div class="app-icon" data-app="Magisk">     <img src="icons/magisk.png" alt="Magisk">        <span>Magisk</span>        </div>
-                <div class="app-icon" data-app="JxMarket">   <img src="icons/market.png" alt="JxMarket">      <span>JxMarket</span>      </div>
-                <div class="app-icon" data-app="Donate">     <img src="icons/donate.png" alt="Донат">         <span>Донат</span>         </div>
-                <div class="app-icon" data-app="Player">     <img src="icons/mp3.png" alt="MP3 Player">       <span>MP3 Player</span>    </div>
-                <div class="app-icon" data-app="Gallery">    <img src="icons/gallery.png" alt="Gallery">      <span>Gallery</span>       </div>
-                <div class="app-icon" data-app="Settings">   <img src="icons/settings.png" alt="Settings">     <span>Settings</span>      </div>
-                <div class="app-icon" data-app="FlappyBird"> <img src="icons/flappy.png" alt="Flappy Bird">    <span>Flappy Bird</span>   </div>
+                <div class="app-icon" data-app="JMail" data-installed="false"><img src="icons/jmail.png" alt="JMail"><span>JMail</span></div>
+                <div class="app-icon" data-app="Magisk"><img src="icons/magisk.png" alt="Magisk"><span>Magisk</span></div>
+                <div class="app-icon" data-app="JxMarket"><img src="icons/market.png" alt="JxMarket"><span>JxMarket</span></div>
+                <div class="app-icon" data-app="Player"><img src="icons/mp3.png" alt="MP3 Player"><span>MP3 Player</span></div>
+                <div class="app-icon" data-app="Gallery"><img src="icons/gallery.png" alt="Gallery"><span>Gallery</span></div>
+                <div class="app-icon" data-app="Settings"><img src="icons/settings.png" alt="Настройки"><span>Настройки</span></div>
+                <div class="app-icon" data-app="FlappyBird"><img src="icons/flappy.png" alt="Flappy Bird"><span>Flappy Bird</span></div>
+                <div class="app-icon" data-app="Terminal"><img src="icons/terminal.png" alt="Terminal"><span>Terminal</span></div>
             </main>
+
             <div id="app-window" class="hidden">
-                <div class="app-header"><span id="app-title"></span></div>
+                <div id="app-header-container"></div>
                 <div id="app-content"></div>
             </div>
+
             <div id="nav-bar">
-                <button id="home-btn"></button>
+                <button class="nav-btn" id="back-btn" title="Back"><svg viewBox="0 0 24 24"><path fill="white" d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" /></svg></button>
+                <button class="nav-btn" id="home-btn" title="Home"><svg viewBox="0 0 24 24"><path fill="white" d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z" /></svg></button>
+                <button class="nav-btn" id="recents-btn" title="Recents"><svg viewBox="0 0 24 24"><path fill="white" d="M18,18H6V6H18V18M18,4H6C4.89,4 4,4.89 4,6V18A2,2 0 0,0 6,20H18A2,2 0 0,0 20,18V6C20,4.89 19.1,4 18,4Z" /></svg></button>
             </div>
+            <div id="physical-power-button"></div>
         </div>
     </div>
 
     <script>
     'use strict';
     
-    let clickAudio;
-    
-    function playClickSound() {
-        if (localStorage.getItem('sound_enabled') !== 'false') {
-            if (!clickAudio) {
-                clickAudio = new Audio('music/click.mp3');
-                clickAudio.volume = parseFloat(localStorage.getItem('sound_volume')) || 0.5;
-            }
-            clickAudio.currentTime = 0;
-            clickAudio.play().catch(e => {});
-        }
-    }
-    document.body.addEventListener('click', playClickSound, {capture: true});
+    // --- Global State ---
+    let clickAudio, playerAudio, powerPressTimer, notificationTimeout;
+    let isScreenOff = false;
+    let currentAppName = null;
 
-    (function checkSystemStatus() {
+    // --- Core Functions ---
+    function showNotification(message) {
+        const popup = document.getElementById('notification-popup');
+        if (notificationTimeout) clearTimeout(notificationTimeout);
+        popup.textContent = message;
+        popup.classList.add('show');
+        notificationTimeout = setTimeout(() => popup.classList.remove('show'), 3000);
+    }
+
+    (function checkSystemStatusOnBoot() {
         const bootloaderStatusElem = document.getElementById('bootloader-status');
         const rootStatusElem = document.getElementById('root-status');
-        
-        if (localStorage.getItem('bootloader_unlocked') === 'true') {
-            bootloaderStatusElem.textContent = 'Unlock';
-            bootloaderStatusElem.style.color = '#ff9800';
-        } else {
-            bootloaderStatusElem.textContent = 'Lock';
-            bootloaderStatusElem.style.color = '#f44336';
-        }
-        
-        if (localStorage.getItem('is_rooted') === 'true') {
-            rootStatusElem.textContent = 'Yes';
-            rootStatusElem.style.color = '#0f0';
-        } else {
-            rootStatusElem.textContent = 'No';
-            rootStatusElem.style.color = '#ccc';
-        }
+        if(!bootloaderStatusElem) return;
+        const isUnlocked = localStorage.getItem('bootloader_unlocked') === 'true';
+        const isRooted = localStorage.getItem('is_rooted') === 'true';
+        bootloaderStatusElem.textContent = isUnlocked ? 'Unlock' : 'Lock';
+        bootloaderStatusElem.classList.toggle('yellow', isUnlocked);
+        bootloaderStatusElem.classList.toggle('red', !isUnlocked);
+        rootStatusElem.textContent = isRooted ? 'Yes' : 'No';
+        rootStatusElem.classList.toggle('yellow', isRooted);
     })();
 
     function rebootDevice(fast = false) {
-        document.getElementById('android-container').style.opacity = '0';
+        document.getElementById('android-container')?.style.setProperty('opacity', '0');
         setTimeout(() => window.location.reload(), fast ? 100 : 500);
     }
     
+    // --- Email Database & Logic ---
+    const allEmails = [
+        { id: 1, sender: 'Jelikton', subject: 'Добро пожаловать в JXOS!', preview: 'Мы рады видеть вас в нашей новой ОС...', body: 'Добро пожаловать в JXOS v1.3!\n\nЭто эмулятор операционной системы, созданный для демонстрации. Вы можете исследовать приложения, изменять настройки и даже получать ROOT-права.\n\nУдачи!', read: true },
+        { id: 2, sender: 'Happy Farm', subject: 'Ваши посевы готовы!', preview: 'Срочно зайдите в игру, чтобы собрать урожай.', body: 'Привет, фермер!\n\nТвоя пшеница созрела. Не дай ей пропасть! Заходи в игру и собери свой урожай, чтобы освободить место для новых культур.', read: false, spam: true },
+        { id: 3, sender: 'GitHub', subject: 'New issue in JXOS/kernel', preview: 'User reported a kernel panic...', body: 'User @testdummy reported a kernel panic when playing Flappy Bird for more than 30 minutes. Need to investigate memory leaks.', read: true },
+        { id: 4, sender: 'Нигерийский Принц', subject: 'СРОЧНОЕ ДЕЛОВОЕ ПРЕДЛОЖЕНИЕ', preview: 'Мое имя Абу, и мне нужна ваша помощь...', body: 'Здравствуйте, достопочтенный друг.\n\nМое имя - Принц Абубакар Тунде. Я обращаюсь к вам с этим срочным и конфиденциальным деловым предложением. Мне нужна ваша помощь в переводе 10,000,000 долларов США, которые я унаследовал от своего покойного отца.', read: false, spam: true },
+        ...Array.from({length: 56}, (_, i) => ({ id: 5+i, sender: `Spammer${i+1}`, subject: 'Увеличьте ваш... доход!', preview: 'Самый лучший способ заработать не выходя из дома!', body: 'Это спам-сообщение номер ' + (i+1) + '. Пожалуйста, не отвечайте на него.', read: false, spam: true }))
+    ];
+    
+    // --- App Renderers (Full Implementation) ---
     const appRenderers = {
-        Terminal: (container) => {
-            container.innerHTML = `
-                <style>
-                    .terminal { background: #000; height: 100%; padding: 10px; font-family: monospace; font-size: 14px; display: flex; flex-direction: column-reverse; box-sizing: border-box;}
-                    .terminal-output { flex-grow: 1; overflow-y: auto; color: #00ff00; word-break: break-all; }
-                    .terminal-input-line { display: flex; background: #111; padding: 5px; border-top: 1px solid #333; }
-                    .terminal-input-line span { color: #ff00ff; padding-right: 5px; }
-                    .terminal-input { background: none; border: none; color: #00ff00; flex-grow: 1; font-family: monospace; font-size: 14px; outline: none; }
-                </style>
-                <div class="terminal">
-                     <div class="terminal-input-line">
-                        <span>user@jxos:~$</span>
-                        <input type="text" class="terminal-input" autofocus />
-                    </div>
-                    <div class="terminal-output">
-                        <div>(c) 2025 Jelikton Corp.</div>
-                        <div>JXOS AOSP Terminal [Version 1.1]</div>
-                    </div>
-                </div>
-            `;
-            const output = container.querySelector('.terminal-output');
-            const input = container.querySelector('.terminal-input');
-            const writeLine = (text, color = '#00ff00') => {
-                const escapedText = text.replace(/</g, "<").replace(/>/g, ">");
-                output.innerHTML = `<div style="color: ${color}; white-space: pre-wrap;">${escapedText}</div>` + output.innerHTML;
-            };
-            const handleCommand = (cmd) => {
-                writeLine(`user@jxos:~$ ${cmd}`);
-                const args = cmd.split(' ');
-                const command = args[0];
-                switch(command) {
-                    case 'sudo':
-                        if (args[1] === 'unlock' && args[2] === 'oem' && args[3] === 'bootloader') {
-                             writeLine(`Attempting to unlock bootloader...`);
-                             setTimeout(() => {
-                                localStorage.setItem('bootloader_unlocked', 'true');
-                                writeLine(`oem bootloader unlock... [OKAY]  13.23 sec.`, '#00ff00');
-                                writeLine(`Device will reboot in 5 seconds.`);
-                                setTimeout(() => rebootDevice(true), 5000);
-                            }, 2000);
-                        } else {
-                             writeLine(`sudo: unknown command`);
-                        }
-                        break;
-                    case 'neofetch':
-                        writeLine(
-`    _______   JXOS v1.1
-   /  _ \\ \\  OS: JXOS 1.1 (KitKat)
-   | (L) | |  Kernel: 3.4.0-jelikton
-   \\_  < | |  Uptime: 1 min
-     \\ \\ / /   Shell: bash 4.2.2
-      \\_ /_/    CPU: MT-6673 @ 4x2.0GHz
-               GPU: Mali-400 MP
-               Memory: 24MiB / 998MiB`, '#33b5e5');
-                        break;
-                    case 'ls':
-                        writeLine('images/  icons/  music/  photos/  index.html');
-                        break;
-                    case 'echo':
-                        writeLine(args.slice(1).join(' '));
-                        break;
-                    case 'cat':
-                        writeLine(`cat: sorry, file reading is not implemented.`);
-                        break;
-                    case 'reboot':
-                        writeLine(`Rebooting...`);
-                        setTimeout(rebootDevice, 1000);
-                        break;
-                    case 'clear':
-                        output.innerHTML = '';
-                        break;
-                    case 'help':
-                        writeLine('Commands: neofetch, ls, echo, cat, reboot, clear, sudo');
-                        break;
-                    default:
-                        if(command) writeLine(`bash: command not found: ${command}`);
-                }
-            };
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && input.value.trim()) {
-                    handleCommand(input.value.trim());
-                    input.value = '';
-                }
-            });
-        },
-
-        Magisk: (container, state) => {
-            container.innerHTML = `
-                <style>
-                    .magisk-body { padding: 20px; text-align: center; }
-                    .magisk-logo { font-size: 48px; }
-                    .magisk-status { margin: 15px 0; padding: 10px; border-radius: 5px; font-weight: bold; }
-                    .status-ok { background: #2e7d32; }
-                    .status-fail { background: #c62828; }
-                    .status-rooted { background: #0099cc; }
-                    .magisk-btn { background: #1976d2; color: #fff; border: none; padding: 15px 30px; font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 20px; transition: opacity 0.3s; }
-                    .magisk-info { font-size: 14px; color: #aaa; margin-top: 20px; padding: 0 10px; line-height: 1.5; }
-                </style>
-                <div class="magisk-body">
-                    <div class="magisk-logo">⚡</div>
-                    <h2>Magisk</h2>
-                    <div id="magisk-status-box" class="magisk-status"></div>
-                    <button id="install-btn" class="magisk-btn">Install</button>
-                    <div id="magisk-message" class="magisk-info"></div>
-                </div>
-            `;
-            const statusBox = container.querySelector('#magisk-status-box');
-            const installBtn = container.querySelector('#install-btn');
-            const message = container.querySelector('#magisk-message');
-            if (localStorage.getItem('is_rooted') === 'true') {
-                statusBox.textContent = 'ROOT: Установлен';
-                statusBox.classList.add('status-rooted');
-                message.textContent = 'Ваше устройство уже рутировано.';
-                installBtn.disabled = true;
-                installBtn.style.opacity = '0.5';
-                installBtn.textContent = 'Установлено';
-            } else if (state.isBootloaderLocked) {
-                statusBox.textContent = 'ROOT: НЕ ДОСТУПЕН';
-                statusBox.classList.add('status-fail');
-                message.innerHTML = '<b>Загрузчик заблокирован!</b><br>Сперва разблокируйте его в терминале.';
-                installBtn.disabled = true;
-                installBtn.style.opacity = '0.5';
-            } else {
-                statusBox.textContent = 'ROOT: ДОСТУПЕН';
-                statusBox.classList.add('status-ok');
-                message.textContent = 'Ваше устройство готово к получению ROOT-прав.';
-                installBtn.addEventListener('click', () => {
-                    if (confirm('ВЫ ПОЛУЧИТЕ РУТ-ПРАВА НА СВОЕМ УСТРОЙСТВЕ, ВЫ ПОДТВЕРЖДАЕТЕ ДЕЙСТВИЕ?')) {
-                        localStorage.setItem('is_rooted', 'true');
-                        message.textContent = 'Установка Magisk... Успешно! Перезагрузка...';
-                        installBtn.disabled = true;
-                        setTimeout(rebootDevice, 4000);
-                    }
-                });
+        JMail: (container) => {
+            let emails = JSON.parse(localStorage.getItem('jmail_emails'));
+            if (!emails) {
+                emails = allEmails.slice(0, 5);
+                localStorage.setItem('jmail_emails', JSON.stringify(emails));
+                localStorage.setItem('jmail_last_email_id', 5);
             }
+            const lastReceived = parseInt(localStorage.getItem('jmail_last_received_time') || '0');
+            const nextEmailId = parseInt(localStorage.getItem('jmail_last_email_id') || '5');
+            if (Date.now() - lastReceived > 30000 && nextEmailId < allEmails.length) {
+                const newEmail = allEmails[nextEmailId];
+                emails.unshift(newEmail);
+                localStorage.setItem('jmail_emails', JSON.stringify(emails));
+                localStorage.setItem('jmail_last_email_id', nextEmailId + 1);
+                localStorage.setItem('jmail_last_received_time', Date.now());
+                if (currentAppName !== 'JMail') showNotification(`Новое сообщение от: ${newEmail.sender}`);
+            }
+            function renderEmailDetail(emailId) {
+                const email = emails.find(e => e.id === emailId);
+                if (!email) { renderEmailList(); return; }
+                email.read = true;
+                localStorage.setItem('jmail_emails', JSON.stringify(emails));
+                document.getElementById('app-header-container').innerHTML = `<div class="app-header" style="cursor: pointer;" id="back-to-maillist"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="var(--holo-blue)" d="M17.77 3.77L16 2 6 12l10 10 1.77-1.77L9.54 12z"/></svg><span>${email.subject}</span></div>`;
+                document.getElementById('back-to-maillist').onclick = renderEmailList;
+                container.innerHTML = `<style>.email-detail-sender{font-size:16px;color:#ccc;padding:15px;border-bottom:1px solid #333}.email-detail-body{padding:20px;font-size:16px;line-height:1.6;white-space:pre-wrap;color:#eee}</style><div class="email-detail-sender">От: <b>${email.sender}</b></div><div class="email-detail-body">${email.body}</div>`;
+            }
+            function renderEmailList() {
+                document.getElementById('app-header-container').innerHTML = `<div class="app-header"><span>JMail</span></div>`;
+                container.innerHTML = `<style>.email-list{padding:0;margin:0;list-style:none}.email-item{display:flex;align-items:center;padding:10px 15px;border-bottom:1px solid #222;cursor:pointer}.email-item:hover{background:var(--item-pressed-bg)}.email-item.unread .email-sender,.email-item.unread .email-subject{font-weight:500;color:#fff}.email-avatar{width:40px;height:40px;border-radius:50%;background:#333;display:flex;justify-content:center;align-items:center;font-size:20px;font-weight:bold;margin-right:15px;flex-shrink:0}.email-content{flex-grow:1;overflow:hidden}.email-sender{font-size:16px;color:#eee}.email-subject,.email-preview{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ccc}.email-preview{font-size:12px;color:#888}</style><ul class="email-list">${emails.map(email => `<li class="email-item ${!email.read?'unread':''}" data-id="${email.id}"><div class="email-avatar" style="background-color:${email.spam?'#c62828':'#1976d2'}">${email.sender.charAt(0)}</div><div class="email-content"><div class="email-sender">${email.sender}</div><div class="email-subject">${email.subject}</div><div class="email-preview">${email.preview}</div></div></li>`).join('') || '<p style="text-align:center;padding:40px">Нет сообщений</p>'}</ul>`;
+                container.querySelectorAll('.email-item').forEach(item => item.onclick = () => renderEmailDetail(parseInt(item.dataset.id)));
+            }
+            renderEmailList();
         },
-
         JxMarket: (container) => {
-            container.innerHTML = `<p style="text-align: center; padding-top: 50px;">Добро пожаловать в JxMarket! <br><br> Скоро здесь появятся приложения.</p>`;
-        },
+            const jmailInstalled = localStorage.getItem('jmail_installed') === 'true';
+            let buttonText = jmailInstalled ? 'ОТКРЫТЬ' : 'СКАЧАТЬ';
+            let buttonClass = jmailInstalled ? 'open' : 'download';
 
-        Settings: (container) => {
-            const renderSettingsMain = () => {
-                container.innerHTML = `
-                    <style>
-                        .settings-btn { display: block; width: calc(100% - 40px); margin: 15px 20px; padding: 20px; background: #333; border: none; color: white; text-align: left; font-size: 16px; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
-                        .settings-btn:hover { background-color: #444; }
-                    </style>
-                    <div>
-                        <button class="settings-btn" data-menu="screen">Экран</button>
-                        <button class="settings-btn" data-menu="sounds">Звуки</button>
-                        <button class="settings-btn" data-menu="about">Об телефоне</button>
-                    </div>
-                `;
-                container.querySelectorAll('.settings-btn').forEach(btn => {
-                    btn.onclick = (e) => renderSubmenu(e.currentTarget.dataset.menu);
-                });
+            container.innerHTML = `<style>.market-header{padding:12px 0;text-align:center;color:var(--holo-blue);font-weight:500;border-bottom:3px solid var(--holo-blue);font-size:16px}.app-list-item{display:flex;align-items:center;padding:10px 15px;border-bottom:1px solid #222}.app-list-icon{width:50px;height:50px;margin-right:15px;border-radius:8px;background:#333;display:flex;justify-content:center;align-items:center}.app-list-icon img{width:28px;height:28px}.app-list-info{flex-grow:1}.app-list-name{font-size:16px}.app-list-details{font-size:12px;color:#aaa}.app-install-button{border:none;border-radius:4px;padding:8px 16px;font-weight:500;cursor:pointer}.app-install-button.download{background:var(--holo-green);color:#000}.app-install-button.open{background:var(--holo-blue);color:#fff}.progress-bar{width:100%;height:4px;background:#555;border-radius:2px;margin-top:5px;display:none}.progress-bar-inner{width:0%;height:100%;background:var(--holo-green);border-radius:2px;transition:width 0.1s linear}</style><div class="market-header">All Apps</div><div><div class="app-list-item"><div class="app-list-icon"><img src="icons/jmail.png" alt="JMail Icon"></div><div class="app-list-info"><div class="app-list-name">JMail</div><div class="app-list-details">JXOS Devs</div><div class="progress-bar"><div class="progress-bar-inner"></div></div></div><button class="app-install-button ${buttonClass}" id="jmail-install-btn">${buttonText}</button></div></div>`;
+
+            const installBtn = container.querySelector('#jmail-install-btn');
+            installBtn.onclick = () => {
+                if (localStorage.getItem('jmail_installed') === 'true') {
+                    document.querySelector('.app-icon[data-app="JMail"]').click();
+                } else {
+                    installBtn.disabled = true; installBtn.textContent = 'ЗАГРУЗКА...';
+                    const progressBar = container.querySelector('.progress-bar'), progressBarInner = container.querySelector('.progress-bar-inner');
+                    progressBar.style.display = 'block';
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += 5;
+                        progressBarInner.style.width = `${progress}%`;
+                        if (progress >= 100) {
+                            clearInterval(interval);
+                            localStorage.setItem('jmail_installed', 'true');
+                            installBtn.textContent = 'ОТКРЫТЬ';
+                            installBtn.className = 'app-install-button open';
+                            installBtn.disabled = false;
+                            document.querySelector('.app-icon[data-app="JMail"]').dataset.installed = 'true';
+                        }
+                    }, 100);
+                }
             };
-            
+        },
+        Settings: (container) => {
+            const headerContainer = document.getElementById('app-header-container');
+            const renderSettingsMain = () => {
+                headerContainer.innerHTML = `<div class="app-header"><span>Настройки</span></div>`;
+                container.innerHTML = `<style>.settings-list{list-style:none;padding:0;margin:0}.settings-item{display:flex;align-items:center;padding:15px;border-bottom:1px solid #222;cursor:pointer;transition:background-color .2s}.settings-item:hover{background-color:var(--item-pressed-bg)}.settings-icon{width:24px;height:24px;margin-right:15px;opacity:.8}.settings-text{flex-grow:1;font-size:16px;color:#fff}.settings-category-header{font-size:14px;font-weight:500;color:var(--holo-blue);padding:15px 15px 8px;text-transform:uppercase;border-bottom:1px solid #222}</style><ul class="settings-list"><li class="settings-category-header">Устройство</li><li class="settings-item" data-menu="display"><img src="icons/display.png" class="settings-icon"><div class="settings-text">Экран</div></li><li class="settings-item" data-menu="sounds"><img src="icons/sound.png" class="settings-icon"><div class="settings-text">Звуки</div></li><li class="settings-item" data-menu="about"><img src="icons/info.png" class="settings-icon"><div class="settings-text">О телефоне</div></li></ul>`;
+                container.querySelectorAll('.settings-item[data-menu]').forEach(btn => btn.onclick = (e) => renderSubmenu(e.currentTarget.dataset.menu));
+            };
             const renderSubmenu = (menu) => {
-                let content = '';
+                let content = '', title = '';
+                const backButtonHTML = `<div class="app-header" style="cursor:pointer;" id="back-to-settings"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="var(--holo-blue)" d="M17.77 3.77L16 2 6 12l10 10 1.77-1.77L9.54 12z"/></svg><span id="app-title"></span></div>`;
+                const submenuStyle = `<style>.submenu-item{padding:15px 20px;border-bottom:1px solid #222}.submenu-item label{display:block;margin-bottom:10px;font-size:16px}.wallpaper-previews{display:flex;gap:10px;margin-top:10px}.wallpaper-thumb{width:60px;height:100px;border:3px solid transparent;cursor:pointer;border-radius:6px;object-fit:cover;transition:border-color .2s}.wallpaper-thumb.selected{border-color:var(--holo-blue)}.switch{position:relative;display:inline-block;width:50px;height:24px}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#555;transition:.4s;border-radius:24px}.slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background-color:#fff;transition:.4s;border-radius:50%}input:checked+.slider{background-color:var(--holo-blue)}input:checked+.slider:before{transform:translateX(26px)}</style>`;
+                
                 switch(menu) {
-                    case 'screen':
-                        const wallpapers = ['images/wp1.jpg', 'images/wp2.jpg']; // Добавьте свои обои сюда
-                        let thumbsHTML = wallpapers.map(wp => `<img src="${wp}" data-wp="${wp}" class="wallpaper-thumb">`).join('');
-                        content = `
-                            <style>
-                                .settings-item { display: flex; flex-direction: column; padding: 15px 20px; }
-                                .wallpaper-previews { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
-                                .wallpaper-thumb { width: 50px; height: 88px; border: 2px solid transparent; cursor: pointer; border-radius: 4px; object-fit: cover; }
-                                .wallpaper-thumb.selected { border-color: var(--holo-blue); }
-                            </style>
-                            <div class="settings-item">
-                                <span>Обои</span>
-                                <div class="wallpaper-previews">${thumbsHTML}</div>
-                            </div>
-                            <div class="settings-item">
-                                <label for="anim-speed">Скорость анимации</label>
-                                <input type="range" id="anim-speed" min="0.1" max="5" step="0.1" value="${localStorage.getItem('animation_speed') || 1}" style="width: 100%;">
-                            </div>
-                        `;
+                    case 'display':
+                        title = "Экран";
+                        content = `${submenuStyle}<div class="submenu-item"><label>Обои</label><div class="wallpaper-previews">${['wp1.jpg','wp2.jpg','wp3.jpg','wp4.jpg'].map(wp=>`<img src="images/${wp}" data-wp="images/${wp}" class="wallpaper-thumb">`).join('')}</div></div><div class="submenu-item"><label for="anim-speed">Скорость анимации</label><input type="range" id="anim-speed" min="0.1" max="5" step="0.1" value="${localStorage.getItem('animation_speed')||1}"></div>`;
                         break;
                     case 'sounds':
-                        const soundEnabled = localStorage.getItem('sound_enabled') !== 'false';
-                        const soundVolume = parseFloat(localStorage.getItem('sound_volume')) || 0.5;
-                        content = `
-                            <style>
-                              .settings-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #333;}
-                              .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
-                              .switch input { opacity: 0; width: 0; height: 0; }
-                              .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .4s; border-radius: 24px; }
-                              .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-                              input:checked + .slider { background-color: var(--holo-blue); }
-                              input:checked + .slider:before { transform: translateX(26px); }
-                            </style>
-                            <div class="settings-item">
-                                <span>Звук нажатия</span>
-                                <label class="switch">
-                                  <input type="checkbox" id="sound-toggle" ${soundEnabled ? 'checked' : ''}>
-                                  <span class="slider"></span>
-                                </label>
-                            </div>
-                            <div class="settings-item">
-                                <span>Громкость</span>
-                                <input type="range" id="sound-volume" min="0" max="1" step="0.1" value="${soundVolume}">
-                            </div>
-                        `;
+                        title = "Звуки";
+                        const soundEnabled = localStorage.getItem('sound_enabled') !== 'false', soundVolume = parseFloat(localStorage.getItem('sound_volume')) || 0.5;
+                        content = `${submenuStyle}<div class="submenu-item" style="display:flex;justify-content:space-between;align-items:center"><label style="margin:0">Звук нажатия</label><label class="switch"><input type="checkbox" id="sound-toggle" ${soundEnabled?'checked':''}><span class="slider"></span></label></div><div class="submenu-item"><label for="sound-volume">Громкость</label><input type="range" id="sound-volume" min="0" max="1" step="0.1" value="${soundVolume}"></div>`;
                         break;
                     case 'about':
-                        content = `<div style="text-align: center; padding-top: 30px;">
-                            <div class="rainbow-text" style="font-size: 32px; font-weight: bold;">JXOS v1.1</div>
-                            <p>Версия: 1.1</p>
-                            <p>Разработчик: @jelikton</p>
-                        </div>`;
+                        title = "О телефоне";
+                        content = `<div style="text-align:center;padding-top:30px"><h3>JXOS v1.3</h3><p>Версия сборки: Final</p><p>Разработчик: Jelikton</p></div>`;
                         break;
                 }
-                container.innerHTML = `<button class="settings-btn" id="back-to-settings" style="width: auto; margin:10px; padding: 10px 15px; border-radius: 5px;">← Назад</button>` + content;
-
-                if (menu === 'screen') {
-                    const desktop = document.getElementById('desktop');
+                headerContainer.innerHTML = backButtonHTML;
+                document.getElementById('app-title').textContent = title;
+                container.innerHTML = content;
+                document.getElementById('back-to-settings').onclick = renderSettingsMain;
+                
+                if (menu === 'display') {
                     container.querySelectorAll('.wallpaper-thumb').forEach(thumb => {
-                        if (thumb.dataset.wp === (localStorage.getItem('desktop_wallpaper') || 'images/wp1.jpg')) {
-                            thumb.classList.add('selected');
-                        }
+                        if (thumb.dataset.wp === (localStorage.getItem('desktop_wallpaper') || 'images/wp1.jpg')) thumb.classList.add('selected');
                         thumb.onclick = () => {
                             const newWp = thumb.dataset.wp;
                             localStorage.setItem('desktop_wallpaper', newWp);
-                            desktop.style.backgroundImage = `url('${newWp}')`;
+                            document.getElementById('desktop').style.backgroundImage = `url('${newWp}')`;
                             container.querySelector('.wallpaper-thumb.selected')?.classList.remove('selected');
                             thumb.classList.add('selected');
                         };
                     });
-                    const animSlider = container.querySelector('#anim-speed');
-                    animSlider.oninput = () => {
-                        const speed = animSlider.value;
-                        localStorage.setItem('animation_speed', speed);
-                        document.documentElement.style.setProperty('--animation-speed', speed);
-                    };
+                    container.querySelector('#anim-speed').oninput = (e) => { localStorage.setItem('animation_speed', e.target.value); document.documentElement.style.setProperty('--animation-speed', e.target.value); };
                 }
                 if (menu === 'sounds') {
-                    const toggle = container.querySelector('#sound-toggle');
-                    const volume = container.querySelector('#sound-volume');
-                    toggle.onchange = () => localStorage.setItem('sound_enabled', toggle.checked);
-                    volume.oninput = () => {
-                        localStorage.setItem('sound_volume', volume.value);
-                        if(clickAudio) clickAudio.volume = volume.value;
-                    };
+                    container.querySelector('#sound-toggle').onchange = (e) => localStorage.setItem('sound_enabled', e.target.checked);
+                    container.querySelector('#sound-volume').oninput = (e) => { localStorage.setItem('sound_volume', e.target.value); if(clickAudio) clickAudio.volume = e.target.value; };
                 }
-                container.querySelector('#back-to-settings').onclick = renderSettingsMain;
             };
             renderSettingsMain();
         },
-
-        FlappyBird: (container) => {
-            container.innerHTML = `<style>#flappy-canvas { display: block; touch-action: none; background: #87ceeb; width: 100%; height: 100%;}</style><canvas id="flappy-canvas"></canvas>`;
-            const canvas = container.querySelector('#flappy-canvas');
-            canvas.width = 360;
-            canvas.height = 640 - 52;
-            const ctx = canvas.getContext('2d');
-            
-            let state = 'getReady';
-            let lastTime = 0;
-            let animationFrameId;
-
-            const birdImg = new Image();
-            birdImg.src = "icons/flappy.png";
-
-            const bird = {
-                x: 80, y: 250, radius: 15, velocity: 0,
-                gravity: 900, jumpStrength: -350, rotation: 0,
-                draw: function() {
-                    ctx.save();
-                    ctx.translate(this.x, this.y);
-                    ctx.rotate(this.rotation);
-                    ctx.drawImage(birdImg, -this.radius * 1.2, -this.radius * 1.2, this.radius * 2.4, this.radius * 2.4);
-                    ctx.restore();
-                },
-                update: function(dt) {
-                    if (state === 'getReady') {
-                        this.y = 250 + 8 * Math.sin(performance.now() / 200);
-                        this.rotation = 0;
-                    } else {
-                        this.velocity += this.gravity * dt;
-                        this.y += this.velocity * dt;
-                        if (this.velocity < 0) {
-                            this.rotation = -Math.PI / 6;
-                        } else {
-                            this.rotation = Math.min(Math.PI / 2, this.rotation + 3 * dt);
-                        }
-                        if (this.y + this.radius >= canvas.height - 112) {
-                            this.y = canvas.height - 112 - this.radius;
-                            if (state === 'game') state = 'over';
-                        }
-                    }
-                },
-                jump: function() { this.velocity = this.jumpStrength; },
-                reset: function() { this.velocity = 0; this.y = 250; this.rotation = 0; }
-            };
-
-            const pipes = {
-                position: [], w: 60, gap: 140, spawnInterval: 1.5,
-                timer: 0, speed: 120,
-                draw: function() {
-                    ctx.fillStyle = "#008000";
-                    for (let p of this.position) {
-                        ctx.fillRect(p.x, 0, this.w, p.y);
-                        ctx.fillRect(p.x, p.y + this.gap, this.w, canvas.height);
-                    }
-                },
-                update: function(dt) {
-                    if (state !== 'game') return;
-                    this.timer += dt;
-                    if(this.timer > this.spawnInterval) {
-                        this.timer = 0;
-                        const topPipeHeight = Math.random() * (canvas.height - this.gap - 200) + 100;
-                        this.position.push({ x: canvas.width, y: topPipeHeight, passed: false });
-                    }
-                    for (let i = this.position.length - 1; i >= 0; i--) {
-                        let p = this.position[i];
-                        p.x -= this.speed * dt;
-                        if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + this.w &&
-                           (bird.y - bird.radius < p.y || bird.y + bird.radius > p.y + this.gap)) {
-                            state = 'over';
-                        }
-                        if (p.x + this.w < bird.x && !p.passed) {
-                            score.value++;
-                            p.passed = true;
-                        }
-                        if (p.x + this.w < 0) this.position.splice(i, 1);
-                    }
-                },
-                reset: function() { this.position = []; this.timer = 0; }
-            };
-            
-            const score = {
-                value: 0,
-                draw: function() {
-                    ctx.fillStyle = "#FFF"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
-                    ctx.font = "35px Teko, sans-serif"; ctx.textAlign = "center";
-                    if (state === 'game') {
-                        ctx.fillText(this.value, canvas.width/2, 50);
-                        ctx.strokeText(this.value, canvas.width/2, 50);
-                    } else if (state === 'over') {
-                        ctx.font = "30px Teko, sans-serif";
-                        ctx.fillText("Game Over", canvas.width/2, canvas.height/2 - 40);
-                        ctx.font = "24px Teko, sans-serif";
-                        ctx.fillText(`Score: ${this.value}`, canvas.width/2, canvas.height/2);
-                    }
-                },
-                reset: function() { this.value = 0; }
-            };
-
-            function draw() {
-                ctx.fillStyle = "#87ceeb"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                pipes.draw();
-                ctx.fillStyle = "#ded895"; ctx.fillRect(0, canvas.height - 112, canvas.width, 112);
-                bird.draw();
-                score.draw();
-                if (state === 'getReady') {
-                    ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-                    ctx.fillStyle = "white"; ctx.font = "bold 25px sans-serif"; ctx.textAlign="center";
-                    ctx.fillText("Нажмите чтобы начать", canvas.width/2, canvas.height/2);
-                }
-            }
-            
-            function loop(currentTime) {
-                if (lastTime === 0) lastTime = currentTime;
-                const deltaTime = (currentTime - lastTime) / 1000;
-                lastTime = currentTime;
-                bird.update(deltaTime);
-                pipes.update(deltaTime);
-                draw();
-                animationFrameId = requestAnimationFrame(loop);
-            }
-            
-            function handleClick() {
-                switch(state) {
-                    case 'getReady': state = 'game'; bird.jump(); break;
-                    case 'game': bird.jump(); break;
-                    case 'over': state = 'getReady'; bird.reset(); pipes.reset(); score.reset(); break;
-                }
-            }
-            canvas.addEventListener("click", handleClick);
-            loop(0);
-            
-            const appWindow = document.getElementById('app-window');
-            const observer = new MutationObserver(() => {
-                if (appWindow.classList.contains('hidden')) {
-                    cancelAnimationFrame(animationFrameId);
-                    observer.disconnect();
-                }
-            });
-            observer.observe(appWindow, { attributes: true });
-        },
-
-        Donate: (container) => {
-            container.innerHTML = `
-                <style>
-                    .donate-content { padding: 20px; }
-                    .donate-title { text-align: center; font-size: 20px; margin-bottom: 25px; }
-                    .donate-btn { display: block; background: #51a8e1; color: #fff; text-decoration: none; padding: 15px; margin: 15px 0; text-align: center; border-radius: 8px; font-weight: 500; }
-                    .donate-btn.tg { background: #39a9e0; }
-                    .donate-warning { margin-top: 30px; padding: 15px; background: #4a1c1c; border: 1px solid #c83232; border-radius: 5px; text-align: center; font-size: 14px; }
-                </style>
-                <div class="donate-content">
-                    <div class="donate-title">Выберите способ поддержки:</div>
-                    <a href="https://www.donationalerts.com/r/jelikton" target="_blank" class="donate-btn">Через DonationAlerts</a>
-                    <a href="https://t.me/jelikton" target="_blank" class="donate-btn tg">Написать в Telegram</a>
-                    <p style="font-size: 12px; color: #ccc; text-align: center;">При отправке в ТГ, напишите: "Привет, я хочу поддержать твой проект денюжкой".</p>
-                    <div class="donate-warning">
-                        <b>ВНИМАНИЕ!</b><br>
-                        ЕСЛИ ВЫ ПО РОФЛУ ХОТИТЕ НАЖАТЬ, ТО ВАС ЖДЕТ МНГНОВЕННЫЙ БАН НА САЙТЕ + ТГ.
-                    </div>
-                </div>
-            `;
-        },
         Player: (container) => {
-            const songList = ["1.mp3", "2.mp3"]; 
-            container.innerHTML = `
-                <style>
-                    .player-body { display: flex; flex-direction: column; height: 100%; background: #2c2c2c; }
-                    .player-now-playing { padding: 20px; text-align: center; background: #222; }
-                    #song-title { font-size: 18px; font-weight: 500; min-height: 25px; }
-                    .player-controls { display: flex; justify-content: space-around; align-items: center; padding: 20px; background: #333; }
-                    .player-controls button { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
-                    .player-playlist { flex-grow: 1; overflow-y: auto; }
-                    .playlist-item { padding: 15px 20px; border-bottom: 1px solid #444; cursor: pointer; }
-                    .playlist-item:hover, .playlist-item.active { background: #33b5e5; color: #000; }
-                </style>
-                <div class="player-body">
-                    <div class="player-now-playing"><div id="song-title">Выберите трек</div></div>
-                    <div class="player-controls">
-                        <button id="prev-btn">⏮</button>
-                        <button id="play-pause-btn">▶️</button>
-                        <button id="next-btn">⏭</button>
-                    </div>
-                    <div id="playlist-container" class="player-playlist"></div>
-                </div>
-            `;
-            const audio = new Audio();
-            let currentTrackIndex = 0, isPlaying = false;
-            const playPauseBtn = container.querySelector('#play-pause-btn');
-            const titleElem = container.querySelector('#song-title');
-            const playlistContainer = container.querySelector('#playlist-container');
-            function loadTrack(index) {
+            const songMetadata = { "1.mp3": { title: "fine night", artist: "goreshit", duration: 204 }, "2.mp3": { title: "dreamer", artist: "goreshit", duration: 185 }, "3.mp3": { title: "hold my hand", artist: "goreshit", duration: 221 } };
+            const songList = Object.keys(songMetadata);
+            let currentTrackIndex = 0;
+
+            container.innerHTML = `<style>.player-body{display:flex;flex-direction:column;height:100%;background:#1e1e1e}.player-main-content{flex-grow:1;background:#111;background-image:url(cover.jpg);background-size:cover;background-position:center}.player-controls-panel{background:var(--pink-accent);padding:10px 15px;color:#fff}.player-song-info{text-align:center;margin-bottom:10px}#song-title{font-size:18px;font-weight:500}#song-artist{font-size:12px;opacity:.8}.player-seek-controls{display:flex;align-items:center;gap:10px;font-size:12px}#seek-slider{flex-grow:1;-webkit-appearance:none;appearance:none;height:4px;background:rgba(0,0,0,.3);outline:none;border-radius:2px}#seek-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;background:#fff;border-radius:50%;cursor:pointer}.player-buttons{display:flex;justify-content:center;align-items:center;gap:30px;margin-top:10px}.player-buttons button{background:0;border:0;color:#fff;font-size:24px;font-weight:700;cursor:pointer}.player-playlist{max-height:150px;overflow-y:auto;background:#1e1e1e;border-top:1px solid #333}.player-playlist::-webkit-scrollbar{width:5px}.player-playlist::-webkit-scrollbar-track{background:#1e1e1e}.player-playlist::-webkit-scrollbar-thumb{background:#555;border-radius:2px}.playlist-item{padding:12px 15px;border-bottom:1px solid #333;cursor:pointer}.playlist-item.active{background:var(--holo-blue);color:#000;font-weight:500}</style><div class="player-body"><div class="player-main-content"></div><div class="player-controls-panel"><div class="player-song-info"><div id="song-title"></div><div id="song-artist"></div></div><div class="player-seek-controls"><span id="current-time">0:00</span><input type="range" id="seek-slider" value="0"><span id="total-time">0:00</span></div><div class="player-buttons"><button id="prev-btn">⏮</button><button id="play-pause-btn">▶</button><button id="next-btn">⏭</button></div></div><div id="playlist-container" class="player-playlist"></div></div>`;
+            
+            const titleElem = container.querySelector('#song-title'), artistElem = container.querySelector('#song-artist'),
+                  currentTimeElem = container.querySelector('#current-time'), totalTimeElem = container.querySelector('#total-time'),
+                  seekSlider = container.querySelector('#seek-slider'), playPauseBtn = container.querySelector('#play-pause-btn'),
+                  playlistContainer = container.querySelector('#playlist-container');
+            
+            playerAudio = new Audio();
+            const formatTime = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+
+            const loadTrack = (index) => {
                 currentTrackIndex = index;
-                audio.src = `music/${songList[index]}`;
-                titleElem.textContent = songList[index].replace('.mp3', '');
+                const songFile = songList[index], meta = songMetadata[songFile];
+                playerAudio.src = `music/${songFile}`;
+                titleElem.textContent = meta.title;
+                artistElem.textContent = meta.artist;
+                seekSlider.max = meta.duration;
+                totalTimeElem.textContent = formatTime(meta.duration);
                 updatePlaylistUI();
-            }
-            function playTrack() { audio.play(); isPlaying = true; playPauseBtn.textContent = '⏸️'; }
-            function pauseTrack() { audio.pause(); isPlaying = false; playPauseBtn.textContent = '▶️'; }
-            function updatePlaylistUI() { container.querySelectorAll('.playlist-item').forEach((item, index) => { item.classList.toggle('active', index === currentTrackIndex); }); }
-            songList.forEach((song, index) => {
+            };
+
+            const playTrack = () => { playerAudio.play(); playPauseBtn.textContent = '⏸'; };
+            const pauseTrack = () => { playerAudio.pause(); playPauseBtn.textContent = '▶'; };
+            const updatePlaylistUI = () => container.querySelectorAll('.playlist-item').forEach((item, i) => item.classList.toggle('active', i === currentTrackIndex));
+            
+            songList.forEach((song, i) => {
                 const item = document.createElement('div');
                 item.className = 'playlist-item';
-                item.textContent = song.replace('.mp3', '');
-                item.onclick = () => { loadTrack(index); playTrack(); };
+                item.textContent = songMetadata[song].title;
+                item.onclick = () => { loadTrack(i); playTrack(); };
                 playlistContainer.appendChild(item);
             });
-            playPauseBtn.onclick = () => (isPlaying ? pauseTrack() : playTrack());
+            
+            playPauseBtn.onclick = () => (playerAudio.paused ? playTrack() : pauseTrack());
             container.querySelector('#next-btn').onclick = () => { loadTrack((currentTrackIndex + 1) % songList.length); playTrack(); };
             container.querySelector('#prev-btn').onclick = () => { loadTrack((currentTrackIndex - 1 + songList.length) % songList.length); playTrack(); };
+            playerAudio.addEventListener('timeupdate', () => { seekSlider.value = playerAudio.currentTime; currentTimeElem.textContent = formatTime(playerAudio.currentTime); });
+            playerAudio.addEventListener('ended', () => container.querySelector('#next-btn').click());
+            seekSlider.addEventListener('input', () => playerAudio.currentTime = seekSlider.value);
+            
+            loadTrack(0);
+        },
+        Terminal: (container) => {
+            container.innerHTML = `<style>.terminal{background:#000;height:100%;padding:10px;font-family:monospace;font-size:14px;display:flex;flex-direction:column-reverse;box-sizing:border-box}.terminal-output{flex-grow:1;overflow-y:auto;color:#0f0;word-break:break-all}.terminal-input-line{display:flex;background:#111;padding:5px}.terminal-input-line span{color:var(--holo-blue);padding-right:5px}.terminal-input{background:0;border:0;color:#0f0;flex-grow:1;font-family:monospace;font-size:14px;outline:0}</style><div class="terminal"><div class="terminal-input-line"><span>user@jxos:~$</span><input type="text" class="terminal-input" autofocus></div><div class="terminal-output"><div>(c) 2025 Jelikton Corp.</div><div>JXOS AOSP Terminal [Version 1.3]</div></div></div>`;
+            const output = container.querySelector('.terminal-output'), input = container.querySelector('.terminal-input');
+            const writeLine = (text, color = '#0f0') => { output.innerHTML = `<div style="color:${color};white-space:pre-wrap;">${text.replace(/</g,"&lt;")}</div>` + output.innerHTML; };
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter' && input.value.trim()) {
+                    const cmd = input.value.trim(), args = cmd.split(' '), command = args[0];
+                    writeLine(`user@jxos:~$ ${cmd}`, '#fff');
+                    switch(command) {
+                        case 'sudo':
+                            if (args[1]==='unlock'&&args[2]==='oem'&&args[3]==='bootloader') {
+                                writeLine('Attempting to unlock bootloader...');
+                                setTimeout(() => { localStorage.setItem('bootloader_unlocked', 'true'); writeLine('oem bootloader unlock... [OKAY]', '#0f0'); writeLine('Device will reboot in 5 seconds.'); setTimeout(() => rebootDevice(true), 5000); }, 2000);
+                            } else writeLine('sudo: unknown command', '#f44336');
+                            break;
+                        case 'neofetch': writeLine('    _______   JXOS v1.3\n   /  _ \\ \\  OS: JXOS 1.3 (Holo)\n   | (L) | |  Kernel: 3.4.0-jelikton\n   \\_  < | |  Uptime: 1 min\n     \\ \\ / /   Shell: bash 4.2.2\n      \\_ /_/    CPU: MT-6673\n               GPU: Mali-400 MP', 'var(--holo-blue)'); break;
+                        case 'ls': writeLine('images/ icons/ music/ photos/ index.html'); break;
+                        case 'echo': writeLine(args.slice(1).join(' ')); break;
+                        case 'reboot': writeLine('Rebooting...'); setTimeout(rebootDevice, 1000); break;
+                        case 'clear': output.innerHTML = ''; break;
+                        case 'help': writeLine('Commands: neofetch, ls, echo, reboot, clear, sudo'); break;
+                        default: if(command) writeLine(`bash: command not found: ${command}`, '#f44336');
+                    }
+                    input.value = '';
+                }
+            };
+        },
+        Magisk: (container) => {
+            const isRooted = localStorage.getItem('is_rooted') === 'true';
+            const isBootloaderLocked = localStorage.getItem('bootloader_unlocked') !== 'true';
+            container.innerHTML = `<style>.magisk-list-item{display:flex;align-items:center;padding:15px;border-bottom:1px solid #333}.magisk-item-icon{font-size:24px;margin-right:15px}.magisk-item-info{flex-grow:1}.magisk-item-title{font-size:16px;font-weight:500}.magisk-item-details{font-size:12px;color:#aaa}.magisk-install-btn{background:#555;color:#fff;border:0;padding:8px 18px;font-size:14px;border-radius:4px;cursor:pointer}.magisk-install-btn.installed{background:var(--holo-blue)}.magisk-footer{padding:20px;text-align:center;color:#aaa;font-size:14px}.magisk-footer.fail{color:#f44336}</style><div><div class="magisk-list-item"><div class="magisk-item-icon">⚡️</div><div class="magisk-item-info"><div class="magisk-item-title">Magisk</div><div class="magisk-item-details">${isRooted?'Installed: v25.2':'Not installed'}</div></div><button id="install-btn" class="magisk-install-btn ${isRooted?'installed':''}">${isRooted?'Установлено':'Install'}</button></div></div><div id="magisk-message" class="magisk-footer"></div>`;
+            const installBtn = container.querySelector('#install-btn'), message = container.querySelector('#magisk-message');
+            if (isRooted) message.textContent = 'Ваше устройство уже рутировано.';
+            else if (isBootloaderLocked) { message.textContent = 'Загрузчик заблокирован! Разблокируйте его в терминале.'; message.classList.add('fail'); installBtn.disabled = true; }
+            else {
+                message.textContent = 'Нажмите Install для получения ROOT-прав.';
+                installBtn.onclick = () => {
+                    if (confirm('ВЫ ПОЛУЧИТЕ РУТ-ПРАВА НА СВОЕМ УСТРОЙСТВЕ?')) { localStorage.setItem('is_rooted', 'true'); message.textContent = 'Установка... Успешно! Перезагрузка...'; installBtn.disabled = true; setTimeout(rebootDevice, 4000); }
+                };
+            }
         },
         Gallery: (container) => {
-            const photoList = ["1.png", "2.png", "3.jpg"];
-            container.innerHTML = `
-                <style>
-                    .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 5px; }
-                    .gallery-thumb { width: 100%; height: 115px; object-fit: cover; cursor: pointer; }
-                    .gallery-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: flex; justify-content: center; align-items: center; }
-                    .gallery-modal img { max-width: 90%; max-height: 90%; }
-                </style>
-                <div class="gallery-grid"></div>
-                <div id="gallery-modal" class="gallery-modal hidden">
-                    <img id="full-photo" src="">
-                </div>
-            `;
-            const grid = container.querySelector('.gallery-grid');
-            const modal = container.querySelector('#gallery-modal');
-            const fullPhoto = container.querySelector('#full-photo');
-            if (photoList.length === 0) { grid.innerHTML = '<p style="padding: 20px; text-align: center; grid-column: 1 / -1;">Нет фото.</p>'; return; }
-            photoList.forEach(photoName => {
-                const img = document.createElement('img');
-                img.src = `photos/${photoName}`;
-                img.className = 'gallery-thumb';
-                img.onclick = () => { fullPhoto.src = `photos/${photoName}`; modal.classList.remove('hidden'); };
-                grid.appendChild(img);
-            });
+            const photoList = ["photos/1.png", "photos/2.png", "photos/3.jpg"];
+            container.innerHTML = `<style>.gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:5px}.gallery-thumb{width:100%;height:115px;object-fit:cover;cursor:pointer}.gallery-modal{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:100;display:flex;justify-content:center;align-items:center}.gallery-modal img{max-width:90%;max-height:90%}</style><div class="gallery-grid"></div><div id="gallery-modal" class="gallery-modal hidden"><img id="full-photo" src=""></div>`;
+            const grid = container.querySelector('.gallery-grid'), modal = container.querySelector('#gallery-modal'), fullPhoto = container.querySelector('#full-photo');
+            if (!photoList.length) { grid.innerHTML = '<p style="padding:20px;text-align:center;grid-column:1/-1;">Нет фото.</p>'; return; }
+            photoList.forEach(photoName => { const img = document.createElement('img'); img.src = photoName; img.className = 'gallery-thumb'; img.onclick = () => { fullPhoto.src = photoName; modal.classList.remove('hidden'); }; grid.appendChild(img); });
             modal.onclick = () => modal.classList.add('hidden');
         },
+        FlappyBird: (container) => {
+            container.innerHTML = `<style>#flappy-canvas{display:block;touch-action:none;background:#87ceeb;width:100%;height:100%}</style><canvas id="flappy-canvas"></canvas>`;
+            const canvas = container.querySelector('#flappy-canvas');
+            canvas.width = 360; canvas.height = container.clientHeight;
+            const ctx = canvas.getContext('2d');
+            let state = 'getReady', lastTime = 0, animationFrameId;
+            const birdImg = new Image(); birdImg.src = "icons/flappy.png";
+            const bird = { x: 80, y: 250, radius: 15, velocity: 0, gravity: 900, jumpStrength: -350, rotation: 0,
+                draw: function() { ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation); ctx.drawImage(birdImg, -this.radius*1.2, -this.radius*1.2, this.radius*2.4, this.radius*2.4); ctx.restore(); },
+                update: function(dt) {
+                    if (state === 'getReady') { this.y = 250 + 8 * Math.sin(performance.now()/200); this.rotation = 0; }
+                    else { this.velocity += this.gravity*dt; this.y += this.velocity*dt; this.rotation = this.velocity < 0 ? -Math.PI/6 : Math.min(Math.PI/2, this.rotation + 3*dt); if (this.y+this.radius >= canvas.height - 112) { this.y = canvas.height-112-this.radius; if (state === 'game') state = 'over'; } }
+                }, jump: function() { this.velocity = this.jumpStrength; }, reset: function() { this.velocity = 0; this.y = 250; this.rotation = 0; }
+            };
+            const pipes = { position: [], w: 60, gap: 140, spawnInterval: 1.5, timer: 0, speed: 120,
+                draw: function() { ctx.fillStyle="#008000"; for (let p of this.position) { ctx.fillRect(p.x, 0, this.w, p.y); ctx.fillRect(p.x, p.y+this.gap, this.w, canvas.height); } },
+                update: function(dt) {
+                    if (state !== 'game') return; this.timer += dt;
+                    if (this.timer > this.spawnInterval) { this.timer = 0; this.position.push({ x: canvas.width, y: Math.random()*(canvas.height-this.gap-200)+100, passed: false }); }
+                    for (let i = this.position.length - 1; i >= 0; i--) { let p = this.position[i]; p.x -= this.speed*dt; if (bird.x+bird.radius > p.x && bird.x-bird.radius < p.x+this.w && (bird.y-bird.radius < p.y || bird.y+bird.radius > p.y+this.gap)) { state = 'over'; } if (p.x+this.w < bird.x && !p.passed) { score.value++; p.passed = true; } if (p.x+this.w < 0) this.position.splice(i, 1); }
+                }, reset: function() { this.position = []; this.timer = 0; }
+            };
+            const score = { value: 0,
+                draw: function() { ctx.fillStyle="#FFF"; ctx.strokeStyle="#000"; ctx.lineWidth=2; ctx.font="35px sans-serif"; ctx.textAlign="center"; if (state === 'game') { ctx.fillText(this.value, canvas.width/2, 50); ctx.strokeText(this.value, canvas.width/2, 50); } else if (state === 'over') { ctx.fillText(`Score: ${this.value}`, canvas.width/2, canvas.height/2); } },
+                reset: function() { this.value = 0; }
+            };
+            function draw() { ctx.fillStyle="#87ceeb"; ctx.fillRect(0, 0, canvas.width, canvas.height); pipes.draw(); ctx.fillStyle="#ded895"; ctx.fillRect(0, canvas.height - 112, canvas.width, 112); bird.draw(); score.draw(); if (state === 'getReady') { ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle="white"; ctx.fillText("Нажмите чтобы начать", canvas.width/2, canvas.height/2); } }
+            function loop(currentTime) { if (lastTime === 0) lastTime = currentTime; const deltaTime = (currentTime - lastTime)/1000; lastTime = currentTime; bird.update(deltaTime); pipes.update(deltaTime); draw(); animationFrameId = requestAnimationFrame(loop); }
+            canvas.onclick = () => { switch(state) { case 'getReady': state='game'; bird.jump(); break; case 'game': bird.jump(); break; case 'over': state='getReady'; bird.reset(); pipes.reset(); score.reset(); break; } };
+            loop(0);
+            const observer = new MutationObserver(() => { if (document.getElementById('app-window').classList.contains('hidden')) { cancelAnimationFrame(animationFrameId); observer.disconnect(); } });
+            observer.observe(document.getElementById('app-window'), { attributes: true });
+        }
     };
 
+    // --- Main Initializer ---
     document.addEventListener('DOMContentLoaded', () => {
-        const state = { isBootloaderLocked: localStorage.getItem('bootloader_unlocked') !== 'true' };
+        const choiceModal=document.getElementById('device-choice-modal'), pcChoiceBtn=document.getElementById('pc-choice'), mobileChoiceBtn=document.getElementById('mobile-choice'), bootScreen=document.getElementById('boot-screen'), androidContainer=document.getElementById('android-container'), timeElem=document.getElementById('time'), appIcons=document.querySelectorAll('.app-icon'), appWindow=document.getElementById('app-window'), appHeaderContainer=document.getElementById('app-header-container'), appContent=document.getElementById('app-content'), homeBtn=document.getElementById('home-btn'), backBtn=document.getElementById('back-btn'), physicalPowerBtn=document.getElementById('physical-power-button'), desktop=document.getElementById('desktop'), aodScreen=document.getElementById('aod-screen'), aodTime=document.getElementById('aod-time'), aodDate=document.getElementById('aod-date');
         
-        const choiceModal = document.getElementById('device-choice-modal');
-        const pcChoiceBtn = document.getElementById('pc-choice');
-        const mobileChoiceBtn = document.getElementById('mobile-choice');
-        const bootScreen = document.getElementById('boot-screen');
-        const androidContainer = document.getElementById('android-container');
-        const timeElem = document.getElementById('time');
-        const appIcons = document.querySelectorAll('.app-icon');
-        const appWindow = document.getElementById('app-window');
-        const appTitleElem = document.getElementById('app-title');
-        const appContent = document.getElementById('app-content');
-        const homeBtn = document.getElementById('home-btn');
-        const desktop = document.getElementById('desktop');
+        if (localStorage.getItem('jmail_installed') === 'true') document.querySelector('.app-icon[data-app="JMail"]').dataset.installed = 'true';
 
-        const openApp = (appName, appTitle) => {
-            appTitleElem.textContent = appTitle;
+        const openApp = (appName) => {
+            const icon = document.querySelector(`.app-icon[data-app="${appName}"]`);
+            if (icon.dataset.installed === 'false') { showNotification('Приложение не установлено. Скачайте его в JxMarket.'); return; }
+            currentAppName = appName;
+            const appTitle = icon.querySelector('span').textContent;
+            appHeaderContainer.innerHTML = `<div class="app-header"><span id="app-title">${appTitle}</span></div>`;
             appContent.innerHTML = '';
-            appWindow.classList.remove('hidden');
-            const renderer = appRenderers[appName];
-            if (typeof renderer === 'function') {
-                renderer(appContent, state);
-            } else {
-                appContent.innerHTML = `<p style="padding: 20px;">Приложение "${appName}" не найдено.</p>`;
-            }
+            appWindow.classList.remove('hidden', 'closing');
+            if (appRenderers[appName]) appRenderers[appName](appContent);
+            else appContent.innerHTML = `<p style="padding:20px;">Приложение "${appName}" находится в разработке.</p>`;
         };
 
         const closeApp = () => {
-            appWindow.classList.add('hidden');
-            appContent.innerHTML = '';
+            if (appWindow.classList.contains('hidden')) return;
+            if (currentAppName === 'Player' && playerAudio && !playerAudio.paused) playerAudio.pause();
+            appWindow.classList.add('closing');
+            appWindow.addEventListener('animationend', function handler() { appWindow.classList.add('hidden'); appContent.innerHTML = ''; currentAppName = null; appWindow.removeEventListener('animationend', handler); });
         };
 
-        const updateClock = () => {
-            const now = new Date();
-            timeElem.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        };
+        const updateAOD = () => { const now=new Date(); aodTime.textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`; aodDate.textContent=now.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'}); };
+        const turnScreenOn = () => { if (!isScreenOff) return; isScreenOff = false; aodScreen.classList.add('hidden'); desktop.style.filter = 'brightness(1)'; };
+        const turnScreenOff = () => { if (isScreenOff) return; isScreenOff = true; closeApp(); updateAOD(); aodScreen.classList.remove('hidden'); desktop.style.filter = 'brightness(0.3)'; };
+
+        physicalPowerBtn.addEventListener('mousedown', (e) => { e.preventDefault(); powerPressTimer = setTimeout(() => rebootDevice(false), 4000); });
+        physicalPowerBtn.addEventListener('mouseup', () => { clearTimeout(powerPressTimer); isScreenOff ? turnScreenOn() : turnScreenOff(); });
+        physicalPowerBtn.addEventListener('mouseleave', () => clearTimeout(powerPressTimer));
+        aodScreen.addEventListener('click', turnScreenOn);
+
+        const updateClock = () => { const now = new Date(); timeElem.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`; };
         
         const startBootSequence = () => {
             choiceModal.classList.add('hidden');
@@ -745,32 +535,19 @@
             setTimeout(() => {
                 bootScreen.classList.add('hidden');
                 androidContainer.classList.remove('hidden');
-                const savedWallpaper = localStorage.getItem('desktop_wallpaper') || 'images/wp1.jpg';
-                desktop.style.backgroundImage = `url('${savedWallpaper}')`;
-                const animSpeed = localStorage.getItem('animation_speed') || 1;
-                document.documentElement.style.setProperty('--animation-speed', animSpeed);
+                desktop.style.backgroundImage = `url('${localStorage.getItem('desktop_wallpaper') || 'images/wp1.jpg'}')`;
+                document.documentElement.style.setProperty('--animation-speed', localStorage.getItem('animation_speed') || 1);
                 updateClock();
                 setInterval(updateClock, 30000);
-            }, 2500);
+            }, 3500);
         };
 
-        pcChoiceBtn.addEventListener('click', () => {
-            document.body.classList.add('pc-view');
-            startBootSequence();
-        });
+        pcChoiceBtn.addEventListener('click', () => { document.body.classList.add('pc-view'); startBootSequence(); });
         mobileChoiceBtn.addEventListener('click', startBootSequence);
-        
-        appIcons.forEach(icon => {
-            icon.addEventListener('click', () => {
-                const appName = icon.dataset.app;
-                const appTitle = icon.querySelector('span').textContent;
-                openApp(appName, appTitle);
-            });
-        });
-
+        appIcons.forEach(icon => icon.addEventListener('click', () => openApp(icon.dataset.app)));
         homeBtn.addEventListener('click', closeApp);
+        backBtn.addEventListener('click', closeApp);
     });
-
     </script>
 </body>
 </html>
