@@ -46,7 +46,9 @@
         }
         .choice-buttons button:hover { background: var(--holo-blue); color: var(--dark-bg); }
 
-        body.pc-view #android-container { transform: scale(0.9); height: auto; border-radius: 24px; }
+        body.pc-view { display:flex;align-items:center;justify-content:center; }
+        body.pc-view #android-container { height: auto; border-radius: 24px; }
+        body.pc-view #desktop { margin: 20px auto; }
         
         #boot-screen {
             display: flex; justify-content: center; align-items: center; flex-direction: column;
@@ -184,6 +186,9 @@
                 <div class="app-icon" data-app="Settings"><img src="icons/settings.png" alt="Настройки"><span>Настройки</span></div>
                 <div class="app-icon" data-app="FlappyBird"><img src="icons/flappy.png" alt="Flappy Bird"><span>Flappy Bird</span></div>
                 <div class="app-icon" data-app="Terminal"><img src="icons/terminal.png" alt="Terminal"><span>Terminal</span></div>
+                <div class="app-icon" data-app="JxPartition"><img src="icons/info.png" alt="Разделы"><span>Разделы</span></div>
+                <div class="app-icon" data-app="JxManager" data-installed="false"><img src="icons/up.png" alt="JxManager"><span>JxManager</span></div>
+                <div class="app-icon" data-app="Browser"><img src="icons/market.png" alt="Browser"><span>Browser</span></div>
             </main>
 
             <div id="app-window" class="hidden">
@@ -203,12 +208,10 @@
     <script>
     'use strict';
     
-    // --- Global State ---
     let clickAudio, playerAudio, powerPressTimer, notificationTimeout;
     let isScreenOff = false;
     let currentAppName = null;
 
-    // --- Core Functions ---
     function showNotification(message) {
         const popup = document.getElementById('notification-popup');
         if (notificationTimeout) clearTimeout(notificationTimeout);
@@ -235,16 +238,14 @@
         setTimeout(() => window.location.reload(), fast ? 100 : 500);
     }
     
-    // --- Email Database & Logic ---
     const allEmails = [
         { id: 1, sender: 'Jelikton', subject: 'Добро пожаловать в JXOS!', preview: 'Мы рады видеть вас в нашей новой ОС...', body: 'Добро пожаловать в JXOS v1.3!\n\nЭто эмулятор операционной системы, созданный для демонстрации. Вы можете исследовать приложения, изменять настройки и даже получать ROOT-права.\n\nУдачи!', read: true },
         { id: 2, sender: 'Happy Farm', subject: 'Ваши посевы готовы!', preview: 'Срочно зайдите в игру, чтобы собрать урожай.', body: 'Привет, фермер!\n\nТвоя пшеница созрела. Не дай ей пропасть! Заходи в игру и собери свой урожай, чтобы освободить место для новых культур.', read: false, spam: true },
-        { id: 3, sender: 'GitHub', subject: 'New issue in JXOS/kernel', preview: 'User reported a kernel panic...', body: 'User @testdummy reported a kernel panic when playing Flappy Bird for more than 30 minutes. Need to investigate memory leaks.', read: true },
+        { id: 3, sender: 'GitHub', subject: 'New issue in JXOS', preview: 'User reported a kernel panic...', body: 'User @testdummy reported a kernel panic when playing Flappy Bird for more than 30 minutes. Need to investigate memory leaks.', read: true },
         { id: 4, sender: 'Нигерийский Принц', subject: 'СРОЧНОЕ ДЕЛОВОЕ ПРЕДЛОЖЕНИЕ', preview: 'Мое имя Абу, и мне нужна ваша помощь...', body: 'Здравствуйте, достопочтенный друг.\n\nМое имя - Принц Абубакар Тунде. Я обращаюсь к вам с этим срочным и конфиденциальным деловым предложением. Мне нужна ваша помощь в переводе 10,000,000 долларов США, которые я унаследовал от своего покойного отца.', read: false, spam: true },
         ...Array.from({length: 56}, (_, i) => ({ id: 5+i, sender: `Spammer${i+1}`, subject: 'Увеличьте ваш... доход!', preview: 'Самый лучший способ заработать не выходя из дома!', body: 'Это спам-сообщение номер ' + (i+1) + '. Пожалуйста, не отвечайте на него.', read: false, spam: true }))
     ];
     
-    // --- App Renderers (Full Implementation) ---
     const appRenderers = {
         JMail: (container) => {
             let emails = JSON.parse(localStorage.getItem('jmail_emails'));
@@ -253,24 +254,157 @@
                 localStorage.setItem('jmail_emails', JSON.stringify(emails));
                 localStorage.setItem('jmail_last_email_id', 5);
             }
+            const originalLength = emails.length;
+            emails = emails.filter(e => !e.spam);
+            if (emails.length !== originalLength) {
+                localStorage.setItem('jmail_emails', JSON.stringify(emails));
+            }
+            const replyTemplatesById = {
+                1: ['Спасибо за тёплый приём!', 'С чего лучше начать?', 'Где найти руководство пользователя?'],
+                2: ['Зайду и соберу урожай', 'Сделаю позже', 'Отключить подобные уведомления'],
+                3: ['Dude, dont write me about this shit', 'Solution: build a new kernel', 'иди нахуй'],
+                4: ['Не интересует', 'Удалите мой адрес из рассылки', 'Сообщить о мошенничестве']
+            };
+            const getReplyOptions = (email) => {
+                if (replyTemplatesById[email.id]) return replyTemplatesById[email.id];
+                if (email.spam) {
+                    return [
+                        `Отписаться от ${email.sender}`,
+                        `Не писать по теме: ${email.subject}`,
+                        'Пожаловаться на спам'
+                    ];
+                }
+                return [
+                    `Спасибо, ${email.sender}!`,
+                    `Ознакомлюсь: ${email.subject}`,
+                    'Свяжусь позже',
+                    'Давайте обсудим детали'
+                ];
+            };
             const lastReceived = parseInt(localStorage.getItem('jmail_last_received_time') || '0');
             const nextEmailId = parseInt(localStorage.getItem('jmail_last_email_id') || '5');
             if (Date.now() - lastReceived > 30000 && nextEmailId < allEmails.length) {
-                const newEmail = allEmails[nextEmailId];
-                emails.unshift(newEmail);
+                let pointer = nextEmailId;
+                let added = false;
+                while (pointer < allEmails.length) {
+                    const candidate = allEmails[pointer];
+                    pointer++;
+                    if (candidate.spam) continue;
+                    emails.unshift(candidate);
                 localStorage.setItem('jmail_emails', JSON.stringify(emails));
-                localStorage.setItem('jmail_last_email_id', nextEmailId + 1);
+                    if (currentAppName !== 'JMail') showNotification(`Новое сообщение от: ${candidate.sender}`);
+                    added = true;
+                    break;
+                }
+                localStorage.setItem('jmail_last_email_id', pointer);
                 localStorage.setItem('jmail_last_received_time', Date.now());
-                if (currentAppName !== 'JMail') showNotification(`Новое сообщение от: ${newEmail.sender}`);
             }
             function renderEmailDetail(emailId) {
                 const email = emails.find(e => e.id === emailId);
                 if (!email) { renderEmailList(); return; }
                 email.read = true;
                 localStorage.setItem('jmail_emails', JSON.stringify(emails));
-                document.getElementById('app-header-container').innerHTML = `<div class="app-header" style="cursor: pointer;" id="back-to-maillist"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="var(--holo-blue)" d="M17.77 3.77L16 2 6 12l10 10 1.77-1.77L9.54 12z"/></svg><span>${email.subject}</span></div>`;
+                document.getElementById('app-header-container').innerHTML = `<div class="app-header" style="cursor: pointer;display:flex;align-items:center;gap:10px;">
+                    <div id="back-to-maillist" style="display:flex;align-items:center;gap:10px;">
+                        <svg width="24" height="24" viewBox="0 0 24 24"><path fill="var(--holo-blue)" d="M17.77 3.77L16 2 6 12l10 10 1.77-1.77L9.54 12z"/></svg>
+                        <span>${email.subject}</span>
+                    </div>
+                    <button id="delete-email-btn" style="margin-left:auto;background:#c62828;color:#fff;border:0;border-radius:4px;padding:6px 10px;cursor:pointer">Удалить</button>
+                </div>`;
                 document.getElementById('back-to-maillist').onclick = renderEmailList;
-                container.innerHTML = `<style>.email-detail-sender{font-size:16px;color:#ccc;padding:15px;border-bottom:1px solid #333}.email-detail-body{padding:20px;font-size:16px;line-height:1.6;white-space:pre-wrap;color:#eee}</style><div class="email-detail-sender">От: <b>${email.sender}</b></div><div class="email-detail-body">${email.body}</div>`;
+                const deleteBtn = document.getElementById('delete-email-btn');
+                if (deleteBtn) {
+                    deleteBtn.onclick = () => {
+                        if (!confirm('Удалить это письмо?')) return;
+                        emails = emails.filter(e => e.id !== emailId);
+                        localStorage.setItem('jmail_emails', JSON.stringify(emails));
+                        showNotification('Письмо удалено');
+                        renderEmailList();
+                    };
+                }
+                const replyOptions = getReplyOptions(email);
+                const canReply = email.id !== 1;
+                container.innerHTML = `<style>
+                .email-detail-sender{font-size:16px;color:#ccc;padding:15px;border-bottom:1px solid #333}
+                .email-detail-body{padding:20px;font-size:16px;line-height:1.6;white-space:pre-wrap;color:#eee}
+                .reply-toggle{padding:10px 15px;border-top:1px solid #222}
+                .reply-toggle button{background:var(--holo-blue);color:#fff;border:0;border-radius:4px;padding:8px 14px;cursor:pointer}
+                .reply-box{padding:10px 15px;border-top:1px solid #222}
+                .reply-options{display:flex;flex-wrap:wrap;gap:8px}
+                .reply-option-btn{background:#444;color:#fff;border:1px solid #333;border-radius:16px;padding:8px 12px;cursor:pointer}
+                .reply-option-btn.selected{background:var(--holo-blue);border-color:var(--holo-blue);color:#000}
+                .reply-actions{display:flex;gap:10px;margin-top:10px}
+                .reply-actions button{border:0;border-radius:4px;padding:8px 14px;cursor:pointer}
+                #send-reply-btn{background:var(--holo-green);color:#000}
+                #send-reply-btn:disabled{opacity:.5;cursor:not-allowed}
+                #cancel-reply-btn{background:#444;color:#fff}
+                .reply-disabled{padding:10px 15px;border-top:1px solid #222;color:#aaa}
+                .email-reply{margin:0 15px 15px;padding:12px;border:1px solid #333;border-radius:6px;background:#151515;color:#ddd}
+                .email-reply-title{font-size:13px;color:#aaa;margin-bottom:8px}
+                .email-reply-body{white-space:pre-wrap;color:#eee;font-size:15px}
+                .email-reply-meta{margin-top:6px;font-size:12px;color:#888}
+                </style>
+                <div class="email-detail-sender">От: <b>${email.sender}</b></div>
+                <div class="email-detail-body">${email.body}</div>
+                <div id="reply-view"></div>
+                ${canReply ? `
+                <div class=\"reply-toggle\"><button id=\"reply-btn\">Ответить</button></div>
+                <div id=\"reply-box\" class=\"reply-box hidden\">
+                    <div class=\"reply-options\">
+                        ${replyOptions.map(opt => `<button class=\"reply-option-btn\" data-value=\"${opt.replace(/\\"/g,'&quot;').replace(/"/g,'&quot;')}\">${opt}</button>`).join('')}
+                    </div>
+                    <div class=\"reply-actions\">
+                        <button id=\"send-reply-btn\" disabled>Отправить</button>
+                        <button id=\"cancel-reply-btn\">Отмена</button>
+                    </div>
+                </div>
+                ` : `
+                <div class=\"reply-disabled\"></div>
+                `}`;
+                const escapeHtml = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const updateReplyView = () => {
+                    const replyView = container.querySelector('#reply-view');
+                    if (!replyView) return;
+                    const sent = JSON.parse(localStorage.getItem('jmail_sent') || '[]');
+                    const last = sent.find(r => r.to === email.sender && r.subject === 'Re: ' + email.subject);
+                    if (last) {
+                        const when = new Date(last.date).toLocaleString('ru-RU');
+                        replyView.innerHTML = `<div class="email-reply"><div class="email-reply-title">Ваш ответ</div><div class="email-reply-body">${escapeHtml(last.body)}</div><div class="email-reply-meta">Отправлено: ${when}</div></div>`;
+                    } else {
+                        replyView.innerHTML = '';
+                    }
+                };
+                updateReplyView();
+                if (canReply) {
+                    const replyBox = container.querySelector('#reply-box');
+                    const replyBtn = container.querySelector('#reply-btn');
+                    const cancelBtn = container.querySelector('#cancel-reply-btn');
+                    const sendBtn = container.querySelector('#send-reply-btn');
+                    let selectedReply = null;
+                    replyBtn.onclick = () => { replyBox.classList.remove('hidden'); };
+                    cancelBtn.onclick = () => { replyBox.classList.add('hidden'); selectedReply = null; sendBtn.disabled = true; container.querySelectorAll('.reply-option-btn').forEach(b=>b.classList.remove('selected')); };
+                    container.querySelectorAll('.reply-option-btn').forEach(btn => {
+                        btn.onclick = () => {
+                            selectedReply = btn.dataset.value;
+                            container.querySelectorAll('.reply-option-btn').forEach(b => b.classList.remove('selected'));
+                            btn.classList.add('selected');
+                            sendBtn.disabled = false;
+                        };
+                    });
+                    sendBtn.onclick = () => {
+                        if (!selectedReply) { showNotification('Выберите вариант ответа'); return; }
+                        const sent = JSON.parse(localStorage.getItem('jmail_sent') || '[]');
+                        const lastId = (parseInt(localStorage.getItem('jmail_sent_last_id') || '0') + 1);
+                        sent.unshift({ id: lastId, to: email.sender, subject: 'Re: ' + email.subject, body: selectedReply, date: Date.now() });
+                        localStorage.setItem('jmail_sent', JSON.stringify(sent));
+                        localStorage.setItem('jmail_sent_last_id', String(lastId));
+                        showNotification('Ответ отправлен');
+                        selectedReply = null;
+                        sendBtn.disabled = true;
+                        replyBox.classList.add('hidden');
+                    updateReplyView();
+                    };
+                }
             }
             function renderEmailList() {
                 document.getElementById('app-header-container').innerHTML = `<div class="app-header"><span>JMail</span></div>`;
@@ -280,41 +414,118 @@
             renderEmailList();
         },
         JxMarket: (container) => {
+            const account = JSON.parse(localStorage.getItem('jx_account') || 'null');
             const jmailInstalled = localStorage.getItem('jmail_installed') === 'true';
             let buttonText = jmailInstalled ? 'ОТКРЫТЬ' : 'СКАЧАТЬ';
             let buttonClass = jmailInstalled ? 'open' : 'download';
 
-            container.innerHTML = `<style>.market-header{padding:12px 0;text-align:center;color:var(--holo-blue);font-weight:500;border-bottom:3px solid var(--holo-blue);font-size:16px}.app-list-item{display:flex;align-items:center;padding:10px 15px;border-bottom:1px solid #222}.app-list-icon{width:50px;height:50px;margin-right:15px;border-radius:8px;background:#333;display:flex;justify-content:center;align-items:center}.app-list-icon img{width:28px;height:28px}.app-list-info{flex-grow:1}.app-list-name{font-size:16px}.app-list-details{font-size:12px;color:#aaa}.app-install-button{border:none;border-radius:4px;padding:8px 16px;font-weight:500;cursor:pointer}.app-install-button.download{background:var(--holo-green);color:#000}.app-install-button.open{background:var(--holo-blue);color:#fff}.progress-bar{width:100%;height:4px;background:#555;border-radius:2px;margin-top:5px;display:none}.progress-bar-inner{width:0%;height:100%;background:var(--holo-green);border-radius:2px;transition:width 0.1s linear}</style><div class="market-header">All Apps</div><div><div class="app-list-item"><div class="app-list-icon"><img src="icons/jmail.png" alt="JMail Icon"></div><div class="app-list-info"><div class="app-list-name">JMail</div><div class="app-list-details">JXOS Devs</div><div class="progress-bar"><div class="progress-bar-inner"></div></div></div><button class="app-install-button ${buttonClass}" id="jmail-install-btn">${buttonText}</button></div></div>`;
-
-            const installBtn = container.querySelector('#jmail-install-btn');
-            installBtn.onclick = () => {
-                if (localStorage.getItem('jmail_installed') === 'true') {
-                    document.querySelector('.app-icon[data-app="JMail"]').click();
-                } else {
-                    installBtn.disabled = true; installBtn.textContent = 'ЗАГРУЗКА...';
-                    const progressBar = container.querySelector('.progress-bar'), progressBarInner = container.querySelector('.progress-bar-inner');
-                    progressBar.style.display = 'block';
-                    let progress = 0;
-                    const interval = setInterval(() => {
-                        progress += 5;
-                        progressBarInner.style.width = `${progress}%`;
-                        if (progress >= 100) {
-                            clearInterval(interval);
-                            localStorage.setItem('jmail_installed', 'true');
-                            installBtn.textContent = 'ОТКРЫТЬ';
-                            installBtn.className = 'app-install-button open';
-                            installBtn.disabled = false;
-                            document.querySelector('.app-icon[data-app="JMail"]').dataset.installed = 'true';
-                        }
-                    }, 100);
-                }
+            const renderAuth = () => {
+                container.innerHTML = `<style>
+                .market-header{padding:12px 0;text-align:center;color:var(--holo-blue);font-weight:500;border-bottom:3px solid var(--holo-blue);font-size:16px}
+                .auth-wrap{padding:16px}
+                .auth-field{display:flex;flex-direction:column;margin-bottom:10px}
+                .auth-field label{font-size:12px;color:#aaa;margin-bottom:6px}
+                .auth-input{background:#111;border:1px solid #333;border-radius:4px;color:#fff;padding:8px}
+                .auth-actions{display:flex;gap:10px;margin-top:10px}
+                .btn{border:0;border-radius:4px;padding:8px 12px;cursor:pointer}
+                .btn-primary{background:var(--holo-blue);color:#fff}
+                </style>
+                <div class="market-header">JxMarket — Вход</div>
+                <div class="auth-wrap">
+                    <div class="auth-field">
+                        <label>Логин</label>
+                        <input id="auth-login" class="auth-input" placeholder="Введите логин">
+                    </div>
+                    <div class="auth-field">
+                        <label>Пароль</label>
+                        <input id="auth-pass" type="password" class="auth-input" placeholder="Введите пароль">
+                    </div>
+                    <div class="auth-actions">
+                        <button id="auth-submit" class="btn btn-primary">Войти</button>
+                    </div>
+                    <div id="auth-msg" style="margin-top:8px;color:#aaa"></div>
+                </div>`;
+                const msg = container.querySelector('#auth-msg');
+                container.querySelector('#auth-submit').onclick = () => {
+                    const login = (container.querySelector('#auth-login')||{}).value?.trim();
+                    const pass = (container.querySelector('#auth-pass')||{}).value?.trim();
+                    if (!login || !pass) { msg.textContent = 'Введите логин и пароль'; return; }
+                    localStorage.setItem('jx_account', JSON.stringify({ login, createdAt: Date.now() }));
+                    showNotification('Вход выполнен');
+                    renderMarket();
+                };
             };
+
+            const renderMarket = () => {
+                const isFrpLocked = localStorage.getItem('jx_frp_locked') === 'true';
+                if (isFrpLocked) {
+                    container.innerHTML = `<div style="padding:16px;color:#ff8a80">FRP LOCK: устройство заблокировано из-за привязанного аккаунта после сброса. Для разблокировки требуется вручную удалить 4 корректных файла из 1000.</div>`;
+                    return;
+                }
+                const isLoggedIn = !!localStorage.getItem('jx_account');
+                if (!isLoggedIn) { renderAuth(); return; }
+                container.innerHTML = `<style>.market-header{padding:12px 0;text-align:center;color:var(--holo-blue);font-weight:500;border-bottom:3px solid var(--holo-blue);font-size:16px}.app-list-item{display:flex;align-items:center;padding:10px 15px;border-bottom:1px solid #222}.app-list-icon{width:50px;height:50px;margin-right:15px;border-radius:8px;background:#333;display:flex;justify-content:center;align-items:center}.app-list-icon img{width:28px;height:28px}.app-list-info{flex-grow:1}.app-list-name{font-size:16px}.app-list-details{font-size:12px;color:#aaa}.app-install-button{border:none;border-radius:4px;padding:8px 16px;font-weight:500;cursor:pointer}.app-install-button.download{background:var(--holo-green);color:#000}.app-install-button.open{background:var(--holo-blue);color:#fff}.progress-bar{width:100%;height:4px;background:#555;border-radius:2px;margin-top:5px;display:none}.progress-bar-inner{width:0%;height:100%;background:var(--holo-green);border-radius:2px;transition:width 0.1s linear}.auth-info{padding:8px 16px;color:#aaa;border-bottom:1px solid #222}</style><div class="market-header">All Apps</div><div class="auth-info">Аккаунт: ${(JSON.parse(localStorage.getItem('jx_account')||'{}').login)||''}</div><div>
+                <div class="app-list-item"><div class="app-list-icon"><img src="icons/jmail.png" alt="JMail Icon"></div><div class="app-list-info"><div class="app-list-name">JMail</div><div class="app-list-details">JXOS Devs</div><div class="progress-bar"><div class="progress-bar-inner"></div></div></div><button class="app-install-button ${buttonClass}" id="jmail-install-btn">${buttonText}</button></div>
+                <div class="app-list-item"><div class="app-list-icon"><img src="icons/up.png" alt="JxManager Icon"></div><div class="app-list-info"><div class="app-list-name">JxManager</div><div class="app-list-details">JXOS Tools</div><div class="progress-bar"><div class="progress-bar-inner"></div></div></div><button class="app-install-button ${localStorage.getItem('jxmanager_installed')==='true'?'open':'download'}" id="jxmanager-install-btn">${localStorage.getItem('jxmanager_installed')==='true'?'ОТКРЫТЬ':'СКАЧАТЬ'}</button></div>
+                </div>`;
+
+                const installBtn = container.querySelector('#jmail-install-btn');
+                installBtn.onclick = () => {
+                    if (localStorage.getItem('jmail_installed') === 'true') {
+                        document.querySelector('.app-icon[data-app="JMail"]').click();
+                    } else {
+                        installBtn.disabled = true; installBtn.textContent = 'ЗАГРУЗКА...';
+                        const progressBar = container.querySelector('.progress-bar'), progressBarInner = container.querySelector('.progress-bar-inner');
+                        progressBar.style.display = 'block';
+                        let progress = 0;
+                        const interval = setInterval(() => {
+                            progress += 5;
+                            progressBarInner.style.width = `${progress}%`;
+                            if (progress >= 100) {
+                                clearInterval(interval);
+                                localStorage.setItem('jmail_installed', 'true');
+                                installBtn.textContent = 'ОТКРЫТЬ';
+                                installBtn.className = 'app-install-button open';
+                                installBtn.disabled = false;
+                                document.querySelector('.app-icon[data-app="JMail"]').dataset.installed = 'true';
+                            }
+                        }, 100);
+                    }
+                };
+                const jxManagerBtn = container.querySelector('#jxmanager-install-btn');
+                jxManagerBtn.onclick = () => {
+                    if (localStorage.getItem('jxmanager_installed') === 'true') {
+                        document.querySelector('.app-icon[data-app="JxManager"]').dataset.installed = 'true';
+                        document.querySelector('.app-icon[data-app="JxManager"]').click();
+                    } else {
+                        jxManagerBtn.disabled = true; jxManagerBtn.textContent = 'ЗАГРУЗКА...';
+                        const box = jxManagerBtn.closest('.app-list-item');
+                        const progressBar = box.querySelector('.progress-bar'), progressBarInner = box.querySelector('.progress-bar-inner');
+                        progressBar.style.display = 'block';
+                        let progress = 0;
+                        const interval = setInterval(() => {
+                            progress += 5;
+                            progressBarInner.style.width = `${progress}%`;
+                            if (progress >= 100) {
+                                clearInterval(interval);
+                                localStorage.setItem('jxmanager_installed', 'true');
+                                jxManagerBtn.textContent = 'ОТКРЫТЬ';
+                                jxManagerBtn.className = 'app-install-button open';
+                                jxManagerBtn.disabled = false;
+                                document.querySelector('.app-icon[data-app="JxManager"]').dataset.installed = 'true';
+                            }
+                        }, 100);
+                    }
+                };
+            };
+
+            renderMarket();
         },
         Settings: (container) => {
             const headerContainer = document.getElementById('app-header-container');
             const renderSettingsMain = () => {
                 headerContainer.innerHTML = `<div class="app-header"><span>Настройки</span></div>`;
-                container.innerHTML = `<style>.settings-list{list-style:none;padding:0;margin:0}.settings-item{display:flex;align-items:center;padding:15px;border-bottom:1px solid #222;cursor:pointer;transition:background-color .2s}.settings-item:hover{background-color:var(--item-pressed-bg)}.settings-icon{width:24px;height:24px;margin-right:15px;opacity:.8}.settings-text{flex-grow:1;font-size:16px;color:#fff}.settings-category-header{font-size:14px;font-weight:500;color:var(--holo-blue);padding:15px 15px 8px;text-transform:uppercase;border-bottom:1px solid #222}</style><ul class="settings-list"><li class="settings-category-header">Устройство</li><li class="settings-item" data-menu="display"><img src="icons/display.png" class="settings-icon"><div class="settings-text">Экран</div></li><li class="settings-item" data-menu="sounds"><img src="icons/sound.png" class="settings-icon"><div class="settings-text">Звуки</div></li><li class="settings-item" data-menu="about"><img src="icons/info.png" class="settings-icon"><div class="settings-text">О телефоне</div></li></ul>`;
+                container.innerHTML = `<style>.settings-list{list-style:none;padding:0;margin:0}.settings-item{display:flex;align-items:center;padding:15px;border-bottom:1px solid #222;cursor:pointer;transition:background-color .2s}.settings-item:hover{background-color:var(--item-pressed-bg)}.settings-icon{width:24px;height:24px;margin-right:15px;opacity:.8}.settings-text{flex-grow:1;font-size:16px;color:#fff}.settings-category-header{font-size:14px;font-weight:500;color:var(--holo-blue);padding:15px 15px 8px;text-transform:uppercase;border-bottom:1px solid #222}.danger{color:#ff8a80}</style><ul class="settings-list"><li class="settings-category-header">Устройство</li><li class="settings-item" data-menu="display"><img src="icons/display.png" class="settings-icon"><div class="settings-text">Экран</div></li><li class="settings-item" data-menu="sounds"><img src="icons/sound.png" class="settings-icon"><div class="settings-text">Звуки</div></li><li class="settings-item" data-menu="about"><img src="icons/info.png" class="settings-icon"><div class="settings-text">О телефоне</div></li><li class="settings-item" data-menu="factory"><img src="icons/up.png" class="settings-icon"><div class="settings-text danger">Сброс игры</div></li></ul>`;
                 container.querySelectorAll('.settings-item[data-menu]').forEach(btn => btn.onclick = (e) => renderSubmenu(e.currentTarget.dataset.menu));
             };
             const renderSubmenu = (menu) => {
@@ -325,7 +536,7 @@
                 switch(menu) {
                     case 'display':
                         title = "Экран";
-                        content = `${submenuStyle}<div class="submenu-item"><label>Обои</label><div class="wallpaper-previews">${['wp1.jpg','wp2.jpg','wp3.jpg','wp4.jpg'].map(wp=>`<img src="images/${wp}" data-wp="images/${wp}" class="wallpaper-thumb">`).join('')}</div></div><div class="submenu-item"><label for="anim-speed">Скорость анимации</label><input type="range" id="anim-speed" min="0.1" max="5" step="0.1" value="${localStorage.getItem('animation_speed')||1}"></div>`;
+                        content = `${submenuStyle}<div class="submenu-item"><label>Обои</label><div class="wallpaper-previews">${['wp1.jpg','wp2.jpg','wp3.jpg','wp4.jpg', 'wp5.jpg'].map(wp=>`<img src="images/${wp}" data-wp="images/${wp}" class="wallpaper-thumb">`).join('')}</div></div><div class="submenu-item"><label for="anim-speed">Скорость анимации</label><input type="range" id="anim-speed" min="0.1" max="5" step="0.1" value="${localStorage.getItem('animation_speed')||1}"></div>`;
                         break;
                     case 'sounds':
                         title = "Звуки";
@@ -335,6 +546,13 @@
                     case 'about':
                         title = "О телефоне";
                         content = `<div style="text-align:center;padding-top:30px"><h3>JXOS v1.3</h3><p>Версия сборки: Final</p><p>Разработчик: Jelikton</p></div>`;
+                        break;
+                    case 'factory':
+                        title = 'Сброс игры';
+                        content = `<div style="padding:16px">
+                            <div style="color:#ff8a80;margin-bottom:10px;">Внимание! Будут удалены все сохранения и настройки.</div>
+                            <button id="do-factory" style="background:#c62828;color:#fff;border:0;border-radius:6px;padding:10px 14px;cursor:pointer">Сбросить</button>
+                        </div>`;
                         break;
                 }
                 headerContainer.innerHTML = backButtonHTML;
@@ -358,6 +576,19 @@
                 if (menu === 'sounds') {
                     container.querySelector('#sound-toggle').onchange = (e) => localStorage.setItem('sound_enabled', e.target.checked);
                     container.querySelector('#sound-volume').oninput = (e) => { localStorage.setItem('sound_volume', e.target.value); if(clickAudio) clickAudio.volume = e.target.value; };
+                }
+                if (menu === 'factory') {
+                    const doFactory = container.querySelector('#do-factory');
+                    if (doFactory) doFactory.onclick = () => {
+                        if (!confirm('Удалить ВСЕ данные и перезапустить?')) return;
+                        const keysToKeep = ['view_mode'];
+                        const preserve = {};
+                        keysToKeep.forEach(k => { const v = localStorage.getItem(k); if (v !== null) preserve[k] = v; });
+                        localStorage.clear();
+                        Object.entries(preserve).forEach(([k,v]) => localStorage.setItem(k, v));
+                        showNotification('Сброс выполнен');
+                        setTimeout(() => rebootDevice(true), 600);
+                    };
                 }
             };
             renderSettingsMain();
@@ -421,7 +652,14 @@
                         case 'sudo':
                             if (args[1]==='unlock'&&args[2]==='oem'&&args[3]==='bootloader') {
                                 writeLine('Attempting to unlock bootloader...');
-                                setTimeout(() => { localStorage.setItem('bootloader_unlocked', 'true'); writeLine('oem bootloader unlock... [OKAY]', '#0f0'); writeLine('Device will reboot in 5 seconds.'); setTimeout(() => rebootDevice(true), 5000); }, 2000);
+                                setTimeout(() => {
+                                    localStorage.setItem('bootloader_unlocked', 'true');
+                                    const hasAccount = !!localStorage.getItem('jx_account');
+                                    if (hasAccount) localStorage.setItem('jx_frp_locked', 'true');
+                                    writeLine('oem bootloader unlock... [OKAY]', '#0f0');
+                                    writeLine('Device will reboot in 5 seconds.');
+                                    setTimeout(() => rebootDevice(true), 5000);
+                                }, 2000);
                             } else writeLine('sudo: unknown command', '#f44336');
                             break;
                         case 'neofetch': writeLine('    _______   JXOS v1.3\n   /  _ \\ \\  OS: JXOS 1.3 (Holo)\n   | (L) | |  Kernel: 3.4.0-jelikton\n   \\_  < | |  Uptime: 1 min\n     \\ \\ / /   Shell: bash 4.2.2\n      \\_ /_/    CPU: MT-6673\n               GPU: Mali-400 MP', 'var(--holo-blue)'); break;
@@ -490,20 +728,259 @@
             loop(0);
             const observer = new MutationObserver(() => { if (document.getElementById('app-window').classList.contains('hidden')) { cancelAnimationFrame(animationFrameId); observer.disconnect(); } });
             observer.observe(document.getElementById('app-window'), { attributes: true });
+        },
+        JxManager: (container) => {
+            const isRooted = localStorage.getItem('is_rooted') === 'true';
+            container.innerHTML = `<style>
+            .mgr-header{padding:12px 16px;border-bottom:1px solid #222;color:#ccc}
+            .mgr-card{margin:12px 16px;border:1px solid #333;border-radius:8px;overflow:hidden}
+            .mgr-card-header{padding:10px 12px;background:#111;color:#fff;border-bottom:1px solid #333}
+            .mgr-card-body{padding:12px;color:#ddd}
+            .mgr-actions{display:flex;gap:10px;margin-top:10px}
+            .btn{border:0;border-radius:4px;padding:8px 12px;cursor:pointer}
+            .btn-primary{background:var(--holo-blue);color:#fff}
+            .btn-danger{background:#c62828;color:#fff}
+            .note{color:#aaa;font-size:12px;margin-top:6px}
+            </style>
+            <div class="mgr-header">JxManager</div>
+            <div class="mgr-card">
+                <div class="mgr-card-header">Recovery: TWRP</div>
+                <div class="mgr-card-body">
+                    <div id="twrp-status">Статус: ${localStorage.getItem('twrp_installed')==='true' ? 'Установлено' : 'Не установлено'}</div>
+                    <div class="mgr-actions">
+                        <button id="install-twrp" class="btn btn-primary">Установить TWRP</button>
+                        <button id="remove-twrp" class="btn btn-danger">Удалить TWRP</button>
+                        <button id="reboot-twrp" class="btn btn-primary">Перезагрузить в TWRP</button>
+                    </div>
+                    <div class="note">Для установки требуется ROOT и разблокированный загрузчик.</div>
+                </div>
+            </div>`;
+            const status = container.querySelector('#twrp-status');
+            const updateStatus = () => status.textContent = `Статус: ${localStorage.getItem('twrp_installed')==='true' ? 'Установлено' : 'Не установлено'}`;
+            container.querySelector('#install-twrp').onclick = () => {
+                const bootloaderUnlocked = localStorage.getItem('bootloader_unlocked') === 'true';
+                if (!isRooted) { showNotification('Нужен ROOT'); return; }
+                if (!bootloaderUnlocked) { showNotification('Разблокируйте загрузчик'); return; }
+                showNotification('Установка TWRP...');
+                setTimeout(()=>{ localStorage.setItem('twrp_installed','true'); updateStatus(); showNotification('TWRP установлено'); }, 1200);
+            };
+            container.querySelector('#remove-twrp').onclick = () => {
+                if (!isRooted) { showNotification('Нужен ROOT'); return; }
+                localStorage.removeItem('twrp_installed'); updateStatus(); showNotification('TWRP удалено');
+            };
+            container.querySelector('#reboot-twrp').onclick = () => {
+                if (localStorage.getItem('twrp_installed') !== 'true') { showNotification('Сначала установите TWRP'); return; }
+                localStorage.setItem('reboot_to_twrp', 'true');
+                showNotification('Перезагрузка в TWRP...');
+                setTimeout(() => rebootDevice(true), 600);
+            };
+        },
+        TWRP: (container) => {
+            container.innerHTML = `<style>
+            .twrp-header{padding:12px 16px;border-bottom:2px solid var(--holo-blue);color:#fff}
+            .twrp-tabs{display:flex;border-bottom:1px solid #333}
+            .twrp-tab{flex:1;text-align:center;padding:10px;cursor:pointer;color:#ccc}
+            .twrp-tab.active{color:#fff;background:#111}
+            .twrp-body{padding:12px 16px;color:#ddd}
+            .file-row{display:flex;justify-content:space-between;align-items:center;border:1px solid #333;border-radius:6px;padding:8px 10px;margin-bottom:8px}
+            .btn{border:0;border-radius:4px;padding:6px 10px;cursor:pointer}
+            .btn-primary{background:var(--holo-blue);color:#fff}
+            .btn-danger{background:#c62828;color:#fff}
+            .muted{color:#aaa}
+            .zip-ok{color:#99cc00}
+            .zip-bad{color:#ff8a80}
+            </style>
+            <div class="twrp-header">Team Win Recovery Project (симуляция)</div>
+            <div class="twrp-tabs">
+                <div class="twrp-tab active" data-tab="install">Установка</div>
+                <div class="twrp-tab" data-tab="wipe">Wipe</div>
+                <div class="twrp-tab" data-tab="reboot">Перезагрузка</div>
+            </div>
+            <div id="twrp-content" class="twrp-body"></div>`;
+
+            const content = container.querySelector('#twrp-content');
+            const setActive = (tab) => {
+                container.querySelectorAll('.twrp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+            };
+            const renderInstall = () => {
+                const zips = JSON.parse(localStorage.getItem('downloaded_zips')||'[]');
+                if (!zips.length) { content.innerHTML = '<div class="muted">Нет загруженных прошивок. Загрузите .zip через Browser.</div>'; return; }
+                content.innerHTML = zips.map((z,i)=>`<div class="file-row"><div>${z.name} <span class="${z.valid?'zip-ok':'zip-bad'}">${z.valid?'VALID':'CORRUPT'}</span></div><div><button class="btn btn-primary" data-i="${i}" data-action="flash" ${z.valid?'':'disabled'}>Прошить</button><button class="btn btn-danger" data-i="${i}" data-action="del">Удалить</button></div></div>`).join('');
+                content.onclick = (e) => {
+                    const btn = e.target.closest('button[data-action]');
+                    if (!btn) return;
+                    const idx = parseInt(btn.dataset.i);
+                    let list = JSON.parse(localStorage.getItem('downloaded_zips')||'[]');
+                    if (btn.dataset.action==='del') {
+                        list.splice(idx,1); localStorage.setItem('downloaded_zips', JSON.stringify(list)); renderInstall();
+                    } else if (btn.dataset.action==='flash') {
+                        const zip = list[idx];
+                        showNotification(`Прошивка ${zip.name}...`);
+                        setTimeout(()=>{
+                            localStorage.setItem('desktop_wallpaper', 'images/wp4.jpg');
+                            localStorage.setItem('rom_version', zip.name.replace(/\.zip$/i,''));
+                            showNotification('Прошивка успешно установлена');
+                        }, 1200);
+                    }
+                };
+            };
+            const renderWipe = () => {
+                content.innerHTML = `<div class="muted">Wipe Data/Cache (симуляция)</div><div style="margin-top:10px"><button id="wipe-data" class="btn btn-danger">Wipe Data</button> <button id="wipe-cache" class="btn btn-danger">Wipe Cache</button></div>`;
+                content.querySelector('#wipe-data').onclick = () => { showNotification('Data очищены'); };
+                content.querySelector('#wipe-cache').onclick = () => { showNotification('Cache очищен'); };
+            };
+            const renderReboot = () => {
+                content.innerHTML = `<button id="reboot-system" class="btn btn-primary">Reboot System</button>`;
+                content.querySelector('#reboot-system').onclick = () => rebootDevice(true);
+            };
+            renderInstall();
+            container.querySelectorAll('.twrp-tab').forEach(tab => tab.onclick = () => { setActive(tab.dataset.tab); ({install:renderInstall, wipe:renderWipe, reboot:renderReboot})[tab.dataset.tab](); });
+        },
+        Browser: (container) => {
+            container.innerHTML = `<style>
+            .br-header{padding:12px 16px;border-bottom:2px solid var(--holo-blue);color:#fff}
+            .br-note{padding:10px 16px;color:#aaa}
+            .br-grid{display:grid;grid-template-columns:repeat(1,1fr);gap:10px;padding:10px 16px}
+            .br-card{border:1px solid #333;border-radius:8px;overflow:hidden}
+            .br-card h4{margin:0;padding:10px 12px;background:#111;border-bottom:1px solid #333}
+            .br-card .body{padding:10px 12px;color:#ddd}
+            .btn{border:0;border-radius:4px;padding:6px 10px;cursor:pointer}
+            .btn-primary{background:var(--holo-blue);color:#fff}
+            .badge{font-size:12px;color:#aaa;margin-left:6px}
+            </style>
+            <div class="br-header">Browser — кастомные прошивки</div>
+            <div class="br-note">Скачайте .zip прошивку и установите её через TWRP.</div>
+            <div class="br-grid" id="rom-list"></div>`;
+            const roms = [
+                { name:'LineageOS-18.1.zip', valid:true, desc:'Android 11, стабильная' },
+                { name:'PixelDust-12L.zip', valid:true, desc:'Android 12L, бета' },
+                { name:'MIUI-Pro-10.zip', valid:false, desc:'Повреждённый архив' }
+            ];
+            const list = container.querySelector('#rom-list');
+            roms.forEach((r, idx)=>{
+                const card = document.createElement('div');
+                card.className = 'br-card';
+                card.innerHTML = `<h4>${r.name}<span class="badge">${r.valid?'VALID':'CORRUPT'}</span></h4><div class="body">${r.desc}<div style="margin-top:8px"><button class="btn btn-primary" data-i="${idx}">Скачать</button></div></div>`;
+                list.appendChild(card);
+            });
+            list.onclick = (e) => {
+                const btn = e.target.closest('button[data-i]');
+                if (!btn) return;
+                const r = roms[parseInt(btn.dataset.i)];
+                const zips = JSON.parse(localStorage.getItem('downloaded_zips')||'[]');
+                if (zips.some(z=>z.name===r.name)) { showNotification('Уже скачано'); return; }
+                showNotification('Загрузка...');
+                setTimeout(()=>{ zips.push({ name:r.name, valid:r.valid }); localStorage.setItem('downloaded_zips', JSON.stringify(zips)); showNotification('Скачано'); }, 700);
+            };
+        },
+        JxPartition: (container) => {
+            const isRooted = localStorage.getItem('is_rooted') === 'true';
+            container.innerHTML = `<style>
+            .part-header{padding:12px 16px;border-bottom:1px solid #222;color:#ccc}
+            .part-warning{background:#2a0000;color:#ff8a80;border:1px solid #b71c1c;margin:10px 15px;padding:10px;border-radius:6px;font-size:13px}
+            .part-list{list-style:none;margin:10px 0 0;padding:0}
+            .part-item{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #222}
+            .part-name{flex:1;color:#fff}
+            .part-tag{font-size:12px;color:#aaa}
+            .danger{color:#ff5252}
+            .part-actions button{border:0;border-radius:4px;padding:6px 10px;cursor:pointer}
+            .btn-del{background:#c62828;color:#fff}
+            .btn-opt{background:#1976d2;color:#fff}
+            .muted{opacity:.7}
+            </style>
+            <div class="part-header">Управление разделами</div>
+            <div class="part-warning">Внимание: требуется ROOT. Удаление разделов может привести к окирпичиванию устройства или неожиданному улучшению производительности. Используйте с осторожностью.</div>
+            <ul class="part-list" id="part-list"></ul>`;
+            if (!isRooted) {
+                container.querySelector('#part-list').innerHTML = '<li class="part-item"><div class="part-name muted">Недостаточно прав. Установите ROOT в Magisk.</div></li>';
+                return;
+            }
+            const defaultPartitions = [
+                { key: 'boot', name: 'boot', critical: true },
+                { key: 'system', name: 'system', critical: true },
+                { key: 'vendor', name: 'vendor', critical: true },
+                { key: 'recovery', name: 'recovery', critical: true },
+                { key: 'userdata', name: 'data', critical: false },
+                { key: 'cache', name: 'cache', critical: false },
+                { key: 'cust', name: 'cust', critical: false }
+            ];
+            const stored = JSON.parse(localStorage.getItem('jx_partitions') || 'null');
+            let partitions = stored || defaultPartitions;
+            if (stored && !partitions.some(p => p.key === 'cust')) {
+                partitions.push({ key: 'cust', name: 'cust', critical: false });
+                localStorage.setItem('jx_partitions', JSON.stringify(partitions));
+            }
+            const list = container.querySelector('#part-list');
+            const render = () => {
+                list.innerHTML = '';
+                partitions.forEach(p => {
+                    const li = document.createElement('li');
+                    li.className = 'part-item';
+                    li.innerHTML = `<div class="part-name">${p.name} <span class="part-tag ${p.critical?'danger':''}">${p.critical?'CRITICAL':''}</span></div>
+                    <div class="part-actions">
+                        <button class="btn-opt" data-action="opt" data-key="${p.key}">Оптимизировать</button>
+                        ${p.key==='cust' ? `<button class="btn-opt" data-action="clean" data-key="${p.key}">Очистить мусор</button>` : ''}
+                        <button class="btn-del" data-action="del" data-key="${p.key}">Удалить</button>
+                    </div>`;
+                    list.appendChild(li);
+                });
+            };
+            const save = () => localStorage.setItem('jx_partitions', JSON.stringify(partitions));
+            const initializeFlashHexIfMissing = () => {
+                let hex = localStorage.getItem('jx_flash_hex');
+                if (!hex || typeof hex !== 'string' || hex.length < 512) {
+                    const size = 256;
+                    const bytes = new Uint8Array(size);
+                    const header = 'BRICKED!';
+                    for (let i = 0; i < header.length; i++) bytes[i] = header.charCodeAt(i);
+                    hex = Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
+                    localStorage.setItem('jx_flash_hex', hex);
+                }
+            };
+            const softBrick = () => {
+                localStorage.setItem('jx_soft_bricked', 'true');
+                initializeFlashHexIfMissing();
+                showNotification('Устройство окирпичено');
+                setTimeout(() => rebootDevice(false), 800);
+            };
+            list.onclick = (e) => {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const key = btn.dataset.key;
+                const idx = partitions.findIndex(p => p.key === key);
+                if (idx === -1) return;
+                if (btn.dataset.action === 'del') {
+                    if (!confirm(`Удалить раздел "${partitions[idx].name}"?`)) return;
+                    const wasCritical = partitions[idx].critical;
+                    partitions.splice(idx, 1);
+                    save();
+                    render();
+                    if (wasCritical) softBrick();
+                    else showNotification('Раздел удалён');
+                } else if (btn.dataset.action === 'opt') {
+                    showNotification('Оптимизация выполнена');
+                } else if (btn.dataset.action === 'clean') {
+                    localStorage.setItem('jx_cust_cleaned_at', String(Date.now()));
+                    showNotification('Мусор в разделе cust очищен');
+                }
+            };
+            render();
         }
     };
 
-    // --- Main Initializer ---
     document.addEventListener('DOMContentLoaded', () => {
         const choiceModal=document.getElementById('device-choice-modal'), pcChoiceBtn=document.getElementById('pc-choice'), mobileChoiceBtn=document.getElementById('mobile-choice'), bootScreen=document.getElementById('boot-screen'), androidContainer=document.getElementById('android-container'), timeElem=document.getElementById('time'), appIcons=document.querySelectorAll('.app-icon'), appWindow=document.getElementById('app-window'), appHeaderContainer=document.getElementById('app-header-container'), appContent=document.getElementById('app-content'), homeBtn=document.getElementById('home-btn'), backBtn=document.getElementById('back-btn'), physicalPowerBtn=document.getElementById('physical-power-button'), desktop=document.getElementById('desktop'), aodScreen=document.getElementById('aod-screen'), aodTime=document.getElementById('aod-time'), aodDate=document.getElementById('aod-date');
         
         if (localStorage.getItem('jmail_installed') === 'true') document.querySelector('.app-icon[data-app="JMail"]').dataset.installed = 'true';
+        const jxManagerIcon = document.querySelector('.app-icon[data-app="JxManager"]');
+        if (jxManagerIcon && localStorage.getItem('jxmanager_installed') === 'true') jxManagerIcon.dataset.installed = 'true';
 
         const openApp = (appName) => {
             const icon = document.querySelector(`.app-icon[data-app="${appName}"]`);
-            if (icon.dataset.installed === 'false') { showNotification('Приложение не установлено. Скачайте его в JxMarket.'); return; }
+            const isInstalled = icon ? icon.dataset.installed !== 'false' : true;
+            if (!isInstalled) { showNotification('Приложение не установлено. Скачайте его в JxMarket.'); return; }
             currentAppName = appName;
-            const appTitle = icon.querySelector('span').textContent;
+            const appTitle = icon ? icon.querySelector('span').textContent : appName;
             appHeaderContainer.innerHTML = `<div class="app-header"><span id="app-title">${appTitle}</span></div>`;
             appContent.innerHTML = '';
             appWindow.classList.remove('hidden', 'closing');
@@ -533,17 +1010,161 @@
             choiceModal.classList.add('hidden');
             bootScreen.classList.remove('hidden');
             setTimeout(() => {
+                const isSoftBricked = localStorage.getItem('jx_soft_bricked') === 'true';
+                const isFrpLocked = localStorage.getItem('jx_frp_locked') === 'true';
+                const rebootToTwrp = localStorage.getItem('reboot_to_twrp') === 'true';
+                if (isSoftBricked) {
+                    const hex = localStorage.getItem('jx_flash_hex') || '';
+                    const isRestored = hex.startsWith('524553544F524544');
+                    if (!isRestored) {
+                        document.body.innerHTML = `
+                        <div style="position:fixed;inset:0;background:#000;color:#f44336;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Roboto,sans-serif;text-align:center;padding:20px;">
+                            <div style="font-size:28px;margin-bottom:10px;">JXOS Corrupted</div>
+                            <div style="max-width:560px;color:#eee;margin-bottom:16px;">Система повреждена из-за удаления критических разделов.</div>
+                            <div style="max-width:560px;color:#ff8a80;margin-bottom:20px;">Восстановление возможно только путём правки HEX флеш-образа:</div>
+                            <div style="max-width:620px;background:#111;border:1px solid #333;border-radius:6px;color:#ccc;padding:12px;text-align:left;">
+                                <div style="margin-bottom:8px;">1) Экспортируйте значение flash HEX:</div>
+                                <code style="display:block;word-break:break-all;color:#9cf;">${hex}</code>
+                                <div style="margin-top:8px;">2) Измените первые 8 байт на строку "RESTORED" в HEX (52 45 53 54 4F 52 45 44).</div>
+                                <div>3) Вставьте изменённое значение ниже и нажмите Проверить.</div>
+                                <div style="display:flex;gap:8px;margin-top:10px;">
+                                    <input id="hex-input" style="flex:1;background:#000;border:1px solid #444;border-radius:4px;color:#eee;padding:8px;font-family:monospace;" placeholder="вставьте изменённый HEX..."/>
+                                    <button id="hex-verify" style="background:#33b5e5;color:#000;border:0;border-radius:6px;padding:8px 12px;font-weight:700;cursor:pointer;">Проверить</button>
+                                </div>
+                                <div id="hex-msg" style="margin-top:8px;color:#aaa;"></div>
+                            </div>
+                        </div>`;
+                        document.getElementById('hex-verify').onclick = () => {
+                            const input = (document.getElementById('hex-input') || {}).value || '';
+                            const msg = document.getElementById('hex-msg');
+                            if (!/^([0-9a-fA-F]{2})+$/.test(input)) { msg.textContent = 'Неверный формат HEX'; return; }
+                            if (!input.startsWith('524553544F524544')) { msg.textContent = 'HEX не содержит метку RESTORED'; return; }
+                            localStorage.setItem('jx_flash_hex', input);
+                            localStorage.removeItem('jx_soft_bricked');
+                            localStorage.removeItem('jx_partitions');
+                            msg.style.color = '#99cc00';
+                            msg.textContent = 'HEX принят, восстановление...';
+                            setTimeout(() => rebootDevice(true), 700);
+                        };
+                        return;
+                    }
+                }
+                if (isFrpLocked) {
+                    document.body.innerHTML = `
+                    <div style="position:fixed;inset:0;background:#000;color:#ff8a80;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Roboto,sans-serif;text-align:center;padding:20px;">
+                        <div style="font-size:28px;margin-bottom:10px;">FRP LOCK</div>
+                        <div style="max-width:560px;color:#eee;margin-bottom:16px;">Это устройство заблокировано, так как было сброшено с привязанным аккаунтом JxMarket.</div>
+                        <div style="max-width:620px;background:#111;border:1px solid #333;border-radius:6px;color:#ccc;padding:12px;text-align:left;">
+                            Условия разблокировки: необходимо удалить ровно 4 правильных файла из набора из 1000 файлов.
+                            <div style=\"margin-top:10px\"><button id=\"frp-start\" style=\"background:#33b5e5;color:#000;border:0;border-radius:6px;padding:8px 12px;font-weight:700;cursor:pointer;\">Начать</button></div>
+                        </div>
+                    </div>`;
+                    document.getElementById('frp-start').onclick = () => {
+                        const pool = Array.from({length:1000}, (_,i)=>({name:`file_${String(i+1).padStart(4,'0')}.bin`, safe: false}));
+                        const chosen = new Set();
+                        while (chosen.size < 4) chosen.add(Math.floor(Math.random()*1000));
+                        [...chosen].forEach(i=>pool[i].safe=true);
+                        localStorage.setItem('jx_frp_pool', JSON.stringify(pool.map(f=>({n:f.name,s:f.safe?1:0}))));
+                        renderFrpTool();
+                    };
+                    const renderFrpTool = () => {
+                        const raw = JSON.parse(localStorage.getItem('jx_frp_pool')||'[]');
+                        const files = raw.map(x=>({name:x.n, safe:!!x.s}));
+                        document.body.innerHTML = `
+                        <div style="position:fixed;inset:0;background:#000;color:#fff;display:flex;flex-direction:column;font-family:Roboto,sans-serif;">
+                            <div style="padding:12px 16px;border-bottom:1px solid #333;">FRP File Remover</div>
+                            <div style="flex:1;overflow:auto;padding:10px 16px;">
+                                <div style="color:#aaa;margin-bottom:10px;">Удалите ровно 4 файла. Подсказок нет.</div>
+                                <div id="frp-list" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+                            </div>
+                            <div style="padding:10px 16px;border-top:1px solid #333;display:flex;gap:8px;align-items:center;">
+                                <button id="frp-reset" style="background:#444;color:#fff;border:0;border-radius:4px;padding:8px 12px;cursor:pointer;">Сброс набора</button>
+                                <div id="frp-msg" style="color:#aaa;"></div>
+                            </div>
+                        </div>`;
+                        const list = document.getElementById('frp-list');
+                        const msg = document.getElementById('frp-msg');
+                        const renderList = () => {
+                            list.innerHTML='';
+                            files.forEach((f,idx)=>{
+                                const btn = document.createElement('button');
+                                btn.textContent = f.name;
+                                btn.style.cssText = 'background:#111;color:#ddd;border:1px solid #333;border-radius:4px;padding:8px;cursor:pointer;text-align:left;';
+                                btn.onclick = () => {
+                                    const removed = files.splice(idx,1)[0];
+                                    localStorage.setItem('jx_frp_pool', JSON.stringify(files.map(x=>({n:x.name,s:x.safe?1:0}))));
+                                    const removedCount = (parseInt(localStorage.getItem('jx_frp_removed_count')||'0') + (removed.safe?1:0));
+                                    localStorage.setItem('jx_frp_removed_count', String(removedCount));
+                                    renderList();
+                                    if (removedCount === 4) {
+                                        localStorage.removeItem('jx_frp_locked');
+                                        localStorage.removeItem('jx_frp_removed_count');
+                                        localStorage.removeItem('jx_frp_pool');
+                                        msg.style.color = '#99cc00';
+                                        msg.textContent = 'Удалены 4 правильных файла. Разблокировка...';
+                                        setTimeout(() => rebootDevice(true), 800);
+                                    }
+                                };
+                                list.appendChild(btn);
+                            });
+                        };
+                        renderList();
+                        document.getElementById('frp-reset').onclick = () => {
+                            localStorage.removeItem('jx_frp_removed_count');
+                            const pool = Array.from({length:1000}, (_,i)=>({name:`file_${String(i+1).padStart(4,'0')}.bin`, safe: false}));
+                            const chosen = new Set(); while (chosen.size < 4) chosen.add(Math.floor(Math.random()*1000));
+                            [...chosen].forEach(i=>pool[i].safe=true);
+                            localStorage.setItem('jx_frp_pool', JSON.stringify(pool.map(f=>({n:f.name,s:f.safe?1:0}))));
+                            renderFrpTool();
+                        };
+                    };
+                    return;
+                }
                 bootScreen.classList.add('hidden');
                 androidContainer.classList.remove('hidden');
                 desktop.style.backgroundImage = `url('${localStorage.getItem('desktop_wallpaper') || 'images/wp1.jpg'}')`;
                 document.documentElement.style.setProperty('--animation-speed', localStorage.getItem('animation_speed') || 1);
                 updateClock();
                 setInterval(updateClock, 30000);
+                if (rebootToTwrp) {
+                    localStorage.removeItem('reboot_to_twrp');
+                    setTimeout(() => {
+                        openApp('TWRP');
+                        showNotification('Загрузка в TWRP');
+                    }, 300);
+                }
             }, 3500);
         };
 
-        pcChoiceBtn.addEventListener('click', () => { document.body.classList.add('pc-view'); startBootSequence(); });
-        mobileChoiceBtn.addEventListener('click', startBootSequence);
+        const updatePcScale = () => {
+            androidContainer.style.transform = 'none';
+            if (!document.body.classList.contains('pc-view')) { desktop.style.transform = ''; return; }
+            const scale = Math.min(window.innerWidth / 360, window.innerHeight / 640) * 0.95;
+            const clamped = Math.max(0.5, Math.min(scale, 2));
+            desktop.style.transformOrigin = 'center center';
+            desktop.style.transform = `scale(${clamped.toFixed(2)})`;
+        };
+
+        pcChoiceBtn.addEventListener('click', () => {
+            localStorage.setItem('view_mode', 'pc');
+            document.body.classList.add('pc-view');
+            updatePcScale();
+            startBootSequence();
+        });
+        mobileChoiceBtn.addEventListener('click', () => {
+            localStorage.setItem('view_mode', 'mobile');
+            document.body.classList.remove('pc-view');
+            updatePcScale();
+            startBootSequence();
+        });
+        window.addEventListener('resize', updatePcScale);
+
+        const savedView = localStorage.getItem('view_mode');
+        if (savedView === 'pc' || savedView === 'mobile') {
+            if (savedView === 'pc') document.body.classList.add('pc-view'); else document.body.classList.remove('pc-view');
+            updatePcScale();
+            startBootSequence();
+        }
         appIcons.forEach(icon => icon.addEventListener('click', () => openApp(icon.dataset.app)));
         homeBtn.addEventListener('click', closeApp);
         backBtn.addEventListener('click', closeApp);
